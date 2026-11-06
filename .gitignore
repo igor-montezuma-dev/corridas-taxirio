@@ -1,0 +1,25 @@
+# Dependências e build
+node_modules/
+dist/
+build/
+coverage/
+
+# Segredos: nunca versionar. Versionar só o .env.example.
+.env
+.env.*
+!.env.example
+
+# Chaves do JWT geradas localmente
+*.pem
+!**/test-fixtures/*.pem
+
+# Logs e resultados
+*.log
+loadtest/results/
+
+# IDE / SO
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

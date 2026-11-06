@@ -1,0 +1,11 @@
+# Normaliza tudo que for texto para LF no repositório e no checkout.
+* text=auto eol=lf
+
+# Scripts precisam de LF, senão quebram dentro do container Linux ("bad interpreter").
+*.sh text eol=lf
+
+# Binários: o Git não deve tentar converter.
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
