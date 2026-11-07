@@ -80,3 +80,9 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 - Hesitei entre `disponivel` e `solicitada`. Escolhi `solicitada`: o passageiro solicita, e o nome descreve o fato, não a visão do motorista.
 - Valores sem acento e sem espaço no banco; a UI formata na exibição.
 - Permissões: criar = passageiro; aceitar = qualquer motorista (o primeiro ganha); iniciar e finalizar = só o motorista que aceitou. Basta uma coluna `motorista_id`.
+
+### Esqueleto da API
+- Recusei o @nestjs/observe oferecido pelo Nest CLI: é SaaS externo, o avaliador precisa reproduzir tudo localmente, e quero implementar logs e métricas eu mesmo.
+- Escolhi CJS + Jest em vez de ESM + Vitest: o suporte a ESM no Nest é recente, as bibliotecas que vou usar têm mais exemplos em CommonJS, e o Jest é próximo do Jasmine que já usei.
+- Aviso EBADENGINE no scaffold. Investiguei com `node -v`: estava no Node 20, que já está em EOL. Troquei para o Node 22 LTS com o nvm-windows e reinstalei o node_modules, e o aviso sumiu.
+- `npm install` reportou 25 vulnerabilidades. Não rodei `npm audit fix --force`, porque ele pode subir versões major e quebrar o projeto. Com `npm audit --omit=dev`: 0 vulnerabilidades em produção; todas estão em ferramentas de desenvolvimento, que não vão para a imagem.
