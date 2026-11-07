@@ -40,5 +40,11 @@ Registro das decisões relevantes: contexto, alternativas consideradas, escolha 
 **Escolha:** 403 quando a corrida existe e não é do usuário; 404 quando não existe.
 **Trade-off:** Revela quais corridas existem; o UUID reduz esse risco. Em produção consideraria 404.
 
-## 7. (obrigatória) Manteria o RabbitMQ num sistema do zero?
+## 7. Acesso ao banco com SQL puro (mysql2), sem ORM
+**Contexto:** As partes centrais do desafio (aceite concorrente e idempotência) dependem do que o MySQL devolve: `affectedRows` e `ER_DUP_ENTRY` (1062). O schema tem só duas tabelas, e as queries vão aparecer no vídeo de apresentação.
+**Alternativas:** Prisma, que gera os tipos sozinho, mas traduz o resultado (`count`, `P2002`) e exige `prisma generate` no Dockerfile e no CI; TypeORM, que fica mais perto do SQL, mas exige escrever as entidades à mão do mesmo jeito; Prisma ou dbmate só para as migrations, descartados por acrescentar uma etapa que precisa rodar antes da API.
+**Escolha:** SQL puro com mysql2, para ter controle do que é executado e defender o SQL que estudei, sem uma camada de tradução no meio. Também reduz as peças que o avaliador precisa subir do zero.
+**Trade-off:** Tipagem manual (tipos e conversão de `snake_case` para `camelCase`) e a disciplina de usar sempre placeholders (`?`) para evitar SQL injection. O schema é criado por um script que o MySQL só executa com o banco vazio: não há migrations versionadas, e mudar o schema exige recriar o banco (LIMITES.md).
+
+## 8. Manteria o RabbitMQ num sistema do zero?
 _A preencher depois de implementar o fluxo com o broker._
