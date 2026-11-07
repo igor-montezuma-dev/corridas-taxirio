@@ -37,3 +37,46 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 - Primeira ideia: comparar timestamps. Descartei: comparar ainda exige ler antes de gravar, então a janela continua.
 - Segunda ideia: CASE WHEN no SET. Descartei: o WHERE id = ? sempre encontra a linha, então não dá para saber quem perdeu.
 - Solução: UPDATE condicional, com a condição de status no WHERE. Uma operação atômica no banco. Linhas afetadas = 1 → ganhou; 0 → 409 (ou 404, se a corrida não existir).
+
+# Diário de desenvolvimento
+
+Registro cronológico e informal do que tentei, do que quebrou, de como investiguei e do que aprendi.
+
+---
+
+## 2026-11-06 (sex)
+
+### Setup do repositório
+- Criei a estrutura de pastas (api, worker, ui, observability, k8s, loadtest, .github/workflows).
+- Adicionei `.gitattributes` com `eol=lf` antes do primeiro commit. Já tive problema com CRLF no Windows: script `.sh` com CRLF quebra dentro de container Linux.
+- Conferi com `git ls-files --eol`: tudo `i/lf`, inclusive com a regra do `.gitattributes` aparecendo na coluna `attr`.
+- **Quebrou:** rodei `git init main` em vez de `git init -b main`, o que criou uma subpasta `main/` com o repositório dentro. Percebi porque o `git config` seguinte deu "not in a git directory". Apaguei a subpasta e reiniciei com `-b`.
+- O prompt do Git Bash mostrava `UCRT64` e achei que fosse outro terminal. Era só a variável `MSYSTEM` do Windows; o `git --version` confirmou que é o Git for Windows.
+
+### Ambiente
+- Considerei mover tudo para o WSL e depois usar o PowerShell. Fiquei com o Git pelo Git Bash e o Docker pelo WSL (em `/mnt/c/...`), que foi o que funcionou melhor para mim.
+- No PowerShell, o `cat << 'EOF'` não existe, e o PowerShell do Windows pode gravar arquivos com CRLF e BOM (um BOM no `.env` corromperia o nome da primeira variável). Por isso os arquivos foram criados pelo Bash.
+
+### Infraestrutura com docker compose
+- Subi MySQL, RabbitMQ, Redis, MongoDB e Prometheus com healthchecks. Todos healthy na primeira tentativa.
+- Healthcheck do MySQL usa `-h 127.0.0.1` para forçar TCP: na primeira subida o MySQL roda um servidor temporário só com socket, e um ping sem `-h` passaria cedo demais.
+- `depends_on` sozinho só espera o container iniciar, não ficar pronto. Por isso o `condition: service_healthy`.
+- MySQL exposto na 3307 do host para não conflitar com um MySQL local na 3306.
+- Ao colar os arquivos no terminal, a exibição deu a impressão de que faltava um `EOF`. Conferi com `cat` e `ls`, e os arquivos estavam corretos.
+
+### Modelagem: concorrência ao aceitar corrida
+- Problema: dois motoristas aceitando a mesma corrida ao mesmo tempo. `SELECT` + `UPDATE` deixa uma janela entre a leitura e a escrita.
+- Primeira ideia: comparar timestamps. Descartei: comparar ainda exige ler antes de gravar, então a janela continua.
+- Segunda ideia: `CASE WHEN` no `SET`. Descartei: o `WHERE id = ?` sempre encontra a linha, então os dois motoristas receberiam `affectedRows = 1`.
+- Solução: `UPDATE` condicional, com a condição de status no `WHERE`. Uma operação atômica: 1 linha afetada → ganhou; 0 → 409 (ou 404 se a corrida não existir).
+---
+
+## 2026-11-07 (sáb)
+
+
+### Máquina de estados
+- Primeiro listei ações (aceita/inicia/finaliza) em vez de estados. Depois propus `disponivel → processando → em_andamento → finalizada`.
+- `processando` era ambíguo num sistema com fila (parece que o worker ainda está trabalhando). Fiquei com `solicitada → aceita → em_andamento → finalizada`.
+- Hesitei entre `disponivel` e `solicitada`. Escolhi `solicitada`: o passageiro solicita, e o nome descreve o fato, não a visão do motorista.
+- Valores sem acento e sem espaço no banco; a UI formata na exibição.
+- Permissões: criar = passageiro; aceitar = qualquer motorista (o primeiro ganha); iniciar e finalizar = só o motorista que aceitou. Basta uma coluna `motorista_id`.
