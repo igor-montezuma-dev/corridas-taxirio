@@ -91,3 +91,11 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 ### Schema e teste da concorrência
 - Escrevi o `db/init/001_schema.sql` seguindo a decisão de não usar ORM (decisão 7 do `DECISIONS.md`).
 - Testei o UPDATE condicional direto no MySQL: o primeiro motorista teve `Rows matched: 1, Changed: 1`; o segundo, `Rows matched: 0`. O WHERE barrou a linha, e o SET nem rodou
+
+### Conexão com o banco e /health
+- Erro TS1272 ao injetar o pool: `Pool` é uma interface do mysql2 e não existe em runtime, mas o `emitDecoratorMetadata` tenta gravar o tipo dos parâmetros do construtor. Resolvi com `import type { Pool }`. A injeção funciona porque o token `DB_POOL` no `@Inject` é quem diz o que injetar.
+- Testei o /health derrubando o MySQL: 503 em cerca de 2 segundos, e 200 de novo quando ele voltou, sem reiniciar a API, porque o pool reconecta sozinho.
+- Notei o cabeçalho `X-Powered-By: Express` nas respostas e desliguei com `app.disable('x-powered-by')`. É higiene, não proteção.
+
+### Decisão do JWT
+- Escolhi RS256 com chave pública. Verifiquei o trade-off de reiniciar a API para trocar a chave e percebi que o custo real não é o reinício (com rolling update não há queda), e sim os tokens já emitidos, que deixam de valer.

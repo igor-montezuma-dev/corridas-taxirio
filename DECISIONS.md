@@ -46,5 +46,11 @@ Registro das decisões relevantes: contexto, alternativas consideradas, escolha 
 **Escolha:** SQL puro com mysql2, para ter controle do que é executado e defender o SQL que estudei, sem uma camada de tradução no meio. Também reduz as peças que o avaliador precisa subir do zero.
 **Trade-off:** Tipagem manual (tipos e conversão de `snake_case` para `camelCase`) e a disciplina de usar sempre placeholders (`?`) para evitar SQL injection. O schema é criado por um script que o MySQL só executa com o banco vazio: não há migrations versionadas, e mudar o schema exige recriar o banco (LIMITES.md).
 
-## 8. Manteria o RabbitMQ num sistema do zero?
+## 8. Assinatura do JWT: RS256 com chave pública
+**Contexto:** O desafio pede validação de JWT com token estático, usando JWKS ou chave pública. Não há login: os tokens de teste são gerados por script.
+**Alternativas:** HS256, em que o mesmo segredo assina e verifica, então a API também conseguiria criar tokens; RS256 com JWKS, que exige mais um serviço no compose.
+**Escolha:** RS256 com a chave pública na API. Só quem emite os tokens tem a chave privada, então a API não consegue fabricar tokens, mesmo se for invadida.
+**Trade-off:** Trocar a chave exige reimplantar a API e invalida os tokens já emitidos. O JWKS evitaria isso com várias chaves identificadas pelo `kid` (LIMITES.md). O par de chaves de teste fica versionado, com nome que deixa claro que é só de teste.
+
+## 9. Manteria o RabbitMQ num sistema do zero?
 _A preencher depois de implementar o fluxo com o broker._

@@ -12,6 +12,7 @@
 - Expiração das chaves de idempotência (TTL ou limpeza periódica).
 - Rejeitar uma `Idempotency-Key` repetida com um body diferente. Hoje a corrida original é devolvida sem avisar o cliente.
 - Imagem base menor para a API (por exemplo, distroless): hoje ~88% dos 265 MB são a imagem do Node.
+- Rotação de chaves do JWT sem invalidar tokens: aceitar mais de uma chave pública, escolhida pelo `kid` do token, ou usar JWKS.
 
 ## Riscos conhecidos
 - A API confia totalmente no token: não há revogação nem verificação de que o usuário ainda existe.
