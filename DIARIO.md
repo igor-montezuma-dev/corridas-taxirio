@@ -87,3 +87,7 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 - Aviso EBADENGINE no scaffold. Investiguei com `node -v`: estava no Node 20, que já está em EOL. Troquei para o Node 22 LTS com o nvm-windows e reinstalei o node_modules, e o aviso sumiu.
 - `npm install` reportou 25 vulnerabilidades. Não rodei `npm audit fix --force`, porque ele pode subir versões major e quebrar o projeto. Com `npm audit --omit=dev`: 0 vulnerabilidades em produção; todas estão em ferramentas de desenvolvimento, que não vão para a imagem.
 - `docker build` falhou com "open Dockerfile: no such file or directory", mesmo com o arquivo na pasta. Investiguei com `ls -la api | grep -i docker`: o arquivo se chamava `DockerFile`. O Windows não diferencia maiúsculas e minúsculas, mas o Docker roda no Linux, que diferencia.
+
+### Schema e teste da concorrência
+- Escrevi o `db/init/001_schema.sql` seguindo a decisão de não usar ORM (decisão 7 do `DECISIONS.md`).
+- Testei o UPDATE condicional direto no MySQL: o primeiro motorista teve `Rows matched: 1, Changed: 1`; o segundo, `Rows matched: 0`. O WHERE barrou a linha, e o SET nem rodou
