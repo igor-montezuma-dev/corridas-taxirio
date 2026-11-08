@@ -84,6 +84,17 @@ services:
       DB_USER: ${MYSQL_USER}
       DB_PASSWORD: ${MYSQL_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE}
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public.pem
+      JWT_ISSUER: corridas-test-issuer
+      JWT_AUDIENCE: corridas-api
+    volumes:
+      - ./keys/test-fixtures/jwt-public.test-only.pem:/run/secrets/jwt-public.pem:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     depends_on:
       mysql:
         condition: service_healthy

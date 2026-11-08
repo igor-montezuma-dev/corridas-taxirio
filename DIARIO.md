@@ -99,3 +99,9 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 
 ### Decisão do JWT
 - Escolhi RS256 com chave pública. Verifiquei o trade-off de reiniciar a API para trocar a chave e percebi que o custo real não é o reinício (com rolling update não há queda), e sim os tokens já emitidos, que deixam de valer.
+
+
+### Autenticação JWT
+- Gerei um par RSA de teste em `keys/test-fixtures/` e um script (`scripts/generate-token.mjs`) que assina tokens só com o `crypto` do Node. A API recebe só a chave pública, montada como arquivo pelo compose.
+- Testei os três cenários do PDF em `/auth/me`: sem token → 401 "Token ausente"; token inválido → 401 "Token inválido"; token válido → 200 com `sub` e `perfil`.
+- Testei um token com o perfil trocado no payload e a assinatura original: 401. A assinatura cobre o payload, e só quem tem a chave privada consegue assinar de novo. Precisei corrigir minha explicação mais de uma vez: a chave que assina não fica na API.
