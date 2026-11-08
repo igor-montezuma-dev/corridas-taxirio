@@ -38,8 +38,6 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 - Segunda ideia: CASE WHEN no SET. Descartei: o WHERE id = ? sempre encontra a linha, então não dá para saber quem perdeu.
 - Solução: UPDATE condicional, com a condição de status no WHERE. Uma operação atômica no banco. Linhas afetadas = 1 → ganhou; 0 → 409 (ou 404, se a corrida não existir).
 
-# Diário de desenvolvimento
-
 Registro cronológico e informal do que tentei, do que quebrou, de como investiguei e do que aprendi.
 
 ---
@@ -100,9 +98,15 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 ### Decisão do JWT
 - Escolhi RS256 com chave pública. Verifiquei o trade-off de reiniciar a API para trocar a chave e percebi que o custo real não é o reinício (com rolling update não há queda), e sim os tokens já emitidos, que deixam de valer.
 
+## 2026-11-08 (dom)
 
 ### Autenticação JWT
 - Gerei um par RSA de teste em `keys/test-fixtures/` e um script (`scripts/generate-token.mjs`) que assina tokens só com o `crypto` do Node. A API recebe só a chave pública, montada como arquivo pelo compose.
 - Testei os três cenários do PDF em `/auth/me`: sem token → 401 "Token ausente"; token inválido → 401 "Token inválido"; token válido → 200 com `sub` e `perfil`.
 - Testei um token com o perfil trocado no payload e a assinatura original: 401. A assinatura cobre o payload, e só quem tem a chave privada consegue assinar de novo. Precisei corrigir minha explicação mais de uma vez: a chave que assina não fica na API.
 - No RolesGuard, escolhi fail-closed: rota sem @Roles é negada com 403. Considerei deixar passar, como no exemplo da documentação, mas preferi que a permissão seja sempre explícita. O custo é pequeno: só as três rotas de corridas usam o guard. Se o controller crescer, dá para definir um @Roles padrão na classe com getAllAndOverride.
+
+### POST /corridas
+- Testei seis cenários: criação (201), repetição com a mesma chave (200, mesmo id e mesmo ETag), motorista criando (403), sem Idempotency-Key (400), `status` no corpo (400 pelo `.strict()`) e origem só com espaços (400 pelo `.trim()`). [VÍDEO - idempotência]
+- No banco: 1 corrida e 1 chave para os dois POSTs com a mesma chave. A corrida da repetição foi inserida e desfeita pelo rollback.
+- O 403 vinha com "Forbidden resource", a mensagem padrão do Nest quando o guard devolve `false`. Troquei por um `throw` com mensagem própria.

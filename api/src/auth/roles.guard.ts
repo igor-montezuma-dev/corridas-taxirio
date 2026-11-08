@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Roles } from './roles.decorator';
 import { AuthenticatedRequest } from './authenticated-user';
@@ -9,10 +14,13 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const roles = this.reflector.get(Roles, context.getHandler());
-     if (!roles) {
+    if (!roles) {
       throw new ForbiddenException('Rota sem perfis definidos');
     }
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    return roles.includes(user.perfil);
+    if (!roles.includes(user.perfil)) {
+      throw new ForbiddenException('Perfil não autorizado para esta operação');
+    }
+    return true;
   }
 }
