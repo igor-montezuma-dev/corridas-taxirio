@@ -56,12 +56,12 @@ export class CorridasRepository {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
 
   async findById(id: string): Promise<Corrida | null> {
-    const [rows] = await this.pool.execute<CorridaRow[]>(
-      `SELECT ${COLUNAS} FROM corridas WHERE id = ?`,
-      [id],
-    );
-    return rows[0] ? toCorrida(rows[0]) : null;
-  }
+  const [rows] = await this.pool.execute<CorridaRow[]>(
+    `SELECT ${COLUNAS} FROM corridas WHERE id = ?`,
+    [id],
+  );
+  return rows[0] ? toCorrida(rows[0]) : null;
+}
 
   async findByIdempotencyKey(
     passageiroId: string,

@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CorridasRepository } from './corridas.repository';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import type { Corrida } from './corrida';
@@ -25,4 +29,25 @@ export class CorridasService {
       destino: body.destino,
     });
   }
+
+  async findOne(user: AuthenticatedUser, id: string): Promise<Corrida> {
+  const corrida = await this.corridasRepository.findById(id);
+  if (!corrida) {
+    throw new NotFoundException('Corrida não encontrada');
+  }
+  if (!this.canRead(user, corrida)) {
+    throw new ForbiddenException('Você não tem acesso a esta corrida');
+  }
+  return corrida;
+}
+
+private canRead(user: AuthenticatedUser, corrida: Corrida): boolean {
+  if (user.perfil === 'passageiro') {
+    return corrida.passageiroId === user.sub;
+  }
+  if (user.perfil === 'motorista') {
+    return corrida.status === 'solicitada' || corrida.motoristaId === user.sub;
+  }
+  return false;
+}
 }
