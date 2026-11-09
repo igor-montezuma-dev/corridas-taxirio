@@ -15,6 +15,8 @@
 - Rotação de chaves do JWT sem invalidar tokens: aceitar mais de uma chave pública, escolhida pelo `kid` do token, ou usar JWKS.
 - Retry do aceite pelo mesmo motorista: se ele aceitou e perdeu a resposta, o reenvio recebe 409. O ideal seria responder 200 quando a corrida já está aceita por ele.
 - Documentação da API com Swagger/OpenAPI. Com o Zod, exigiria uma biblioteca para converter os schemas ou descrevê-los à mão.
+- Paginação na listagem: hoje há um limite fixo de 50 corridas. Paginação por OFFSET seria instável numa lista que muda o tempo todo (quando uma corrida é aceita, as seguintes mudam de página); em produção, usaria paginação por cursor (`WHERE criado_em > ?`).
+- A lista do motorista acumula todas as corridas que ele já finalizou. Num app real, ela mostraria só as ativas, e o histórico ficaria em outra tela.
 
 ## Riscos conhecidos
 - A API confia totalmente no token: não há revogação nem verificação de que o usuário ainda existe.

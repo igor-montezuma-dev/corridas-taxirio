@@ -55,6 +55,27 @@ function isDuplicateKeyError(erro: unknown): boolean {
 export class CorridasRepository {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
 
+  async findByPassageiroId(passageiroId: string): Promise<Corrida[]> {
+    const [rows] = await this.pool.execute<CorridaRow[]>(
+      `SELECT ${COLUNAS} FROM corridas WHERE passageiro_id = ? 
+      ORDER BY criado_em DESC
+      LIMIT 50`,
+      [passageiroId],
+    );
+    return rows.map(toCorrida);
+  }
+
+  async findForMotorista(motoristaId: string): Promise<Corrida[]> {
+    const [rows] = await this.pool.execute<CorridaRow[]>(
+      `SELECT ${COLUNAS} FROM corridas
+      WHERE status = 'solicitada' OR motorista_id = ?
+      ORDER BY criado_em ASC
+      LIMIT 50`,
+      [motoristaId],
+    );
+    return rows.map(toCorrida);
+  }
+
   async findById(id: string): Promise<Corrida | null> {
     const [rows] = await this.pool.execute<CorridaRow[]>(
       `SELECT ${COLUNAS} FROM corridas WHERE id = ?`,
@@ -127,7 +148,7 @@ export class CorridasRepository {
     if (de === 'solicitada') {
       const [result] = await this.pool.execute<ResultSetHeader>(
         `UPDATE corridas SET status = ?, motorista_id = ? WHERE id = ? AND status = ? AND motorista_id IS NULL`,
-        [para, motoristaId, id, de ],
+        [para, motoristaId, id, de],
       );
       return result.affectedRows > 0;
     }

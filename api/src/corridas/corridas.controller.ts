@@ -54,6 +54,12 @@ export class CorridasController {
     return corrida;
   }
 
+  @Get()
+  @Roles(['passageiro', 'motorista'])
+  findAll(@CurrentUser() user: AuthenticatedUser): Promise<Corrida[]> {
+    return this.corridasService.findAll(user);
+  }
+
   @Get(':id')
   @Roles(['passageiro', 'motorista'])
   findOne(

@@ -136,3 +136,9 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 ### PATCH /corridas/:id/status
 - O corpo recebe a ação (`aceitar`, `iniciar`, `finalizar`), e não o status de destino: o cliente diz o que quer fazer, e o servidor decide o novo estado. As transições ficam numa constante `TRANSICOES`.
 - Bug achado no teste: finalizar uma corrida ainda não aceita dava 403 ("pertence a outro motorista") em vez de 409. O `motoristaId` era `null`, e `null !== 'motorista-1'` deu verdadeiro. Corrigi exigindo que a corrida tenha motorista antes de
+
+### GET /corridas (listagem)
+- O motorista vê as `solicitada` e as que aceitou, a mesma regra do `canRead`, só que no `WHERE`. Primeiro tentei usar o `findByMotoristaId`, mas ele deixaria de fora as solicitadas, justamente as que o motorista pode aceitar.
+- Ordem diferente para cada perfil: o motorista em `ASC` (quem pediu primeiro é atendido primeiro) e o passageiro em `DESC`. Com `ASC` e `LIMIT 50`, um passageiro com muitas corridas nunca veria a atual.
+- Comecei a implementar paginação com `OFFSET`, o `LIMIT ?`/`OFFSET ?` costuma falhar no `execute` do mysql2, e paginação por offset fica instável numa lista que muda o tempo todo.
+- Apaguei o `findAll` e o `findByMotoristaId` do repository, que não eram usados. O `findAll` devolvia todas as corridas sem nenhuma regra de acesso.

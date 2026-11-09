@@ -45,6 +45,17 @@ export class CorridasService {
     });
   }
 
+  async findAll(user: AuthenticatedUser): Promise<Corrida[]> {
+    if (user.perfil === 'passageiro') {
+      return this.corridasRepository.findByPassageiroId(user.sub);
+    }
+    if (user.perfil === 'motorista') {
+      return this.corridasRepository.findForMotorista(user.sub);
+    }
+
+    throw new ForbiddenException('Perfil inválido');
+  }
+
   async findOne(user: AuthenticatedUser, id: string): Promise<Corrida> {
     const corrida = await this.corridasRepository.findById(id);
     if (!corrida) {
@@ -56,21 +67,36 @@ export class CorridasService {
     return corrida;
   }
 
-  async updateStatus(user: AuthenticatedUser, id: string, acao: AcaoCorrida): Promise<Corrida> {
-  const { de, para } = TRANSICOES[acao];
-  const atualizou = await this.corridasRepository.transitionStatus(id, user.sub, de, para);
+  async updateStatus(
+    user: AuthenticatedUser,
+    id: string,
+    acao: AcaoCorrida,
+  ): Promise<Corrida> {
+    const { de, para } = TRANSICOES[acao];
+    const atualizou = await this.corridasRepository.transitionStatus(
+      id,
+      user.sub,
+      de,
+      para,
+    );
 
-  const corrida = await this.corridasRepository.findById(id);
-  if (!corrida) {
-    throw new NotFoundException('Corrida não encontrada');
-  }
-  if (atualizou) {
-    return corrida;
-  }
+    const corrida = await this.corridasRepository.findById(id);
+    if (!corrida) {
+      throw new NotFoundException('Corrida não encontrada');
+    }
+    if (atualizou) {
+      return corrida;
+    }
 
-  if (acao !== 'aceitar' && corrida.motoristaId !== null && corrida.motoristaId !== user.sub) {
-    throw new ForbiddenException('Esta corrida pertence a outro motorista');
+    if (
+      acao !== 'aceitar' &&
+      corrida.motoristaId !== null &&
+      corrida.motoristaId !== user.sub
+    ) {
+      throw new ForbiddenException('Esta corrida pertence a outro motorista');
+    }
+    throw new ConflictException(
+      `Não é possível ${acao} uma corrida com status ${corrida.status}`,
+    );
   }
-  throw new ConflictException(`Não é possível ${acao} uma corrida com status ${corrida.status}`);
-}
 }
