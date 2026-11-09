@@ -103,7 +103,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
+  demo:
+    image: node:22-alpine
+    profiles: ["demo"]
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+    environment:
+      API_URL: http://api:3000
+    entrypoint: ["sh", "-c", "apk add --no-cache bash curl > /dev/null && bash scripts/demo.sh"]
+    depends_on:
+      api:
+        condition: service_healthy
 volumes:
   mysql-data:
   mongo-data:
