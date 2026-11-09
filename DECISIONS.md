@@ -52,5 +52,11 @@ Registro das decisões relevantes: contexto, alternativas consideradas, escolha 
 **Escolha:** RS256 com a chave pública na API. Só quem emite os tokens tem a chave privada, então a API não consegue fabricar tokens, mesmo se for invadida.
 **Trade-off:** Trocar a chave exige reimplantar a API e invalida os tokens já emitidos. O JWKS evitaria isso com várias chaves identificadas pelo `kid` (LIMITES.md). O par de chaves de teste fica versionado, com nome que deixa claro que é só de teste.
 
-## 9. Manteria o RabbitMQ num sistema do zero?
+## 9. Topologia do RabbitMQ: exchange topic, retry com intervalo e DLQ
+**Contexto:** A API publica `corrida.criada` e `corrida.status_alterado`. O worker consome os dois, e futuros consumidores podem querer só um deles. Falhas no worker podem ser passageiras (Mongo reiniciando) ou permanentes (mensagem mal formada).
+**Alternativas:** Exchange direct, que exige a chave exata e um binding para cada evento; fanout, que entrega todos os eventos a todas as filas e passa o filtro para o consumidor. Para falhas, DLQ direta, que manda para a mesma fila tanto o erro que se resolveria sozinho quanto o erro real.
+**Escolha:** Exchange `corridas` do tipo topic, e a fila do worker assinando `corrida.*`. Em caso de falha, a mensagem vai para uma fila de retry com TTL de 5 s, que a devolve à fila principal; depois de 3 tentativas, vai para a DLQ. Assim, as falhas passageiras se resolvem sozinhas, e na DLQ só ficam os erros que precisam de investigação.
+**Trade-off:** Mais complexidade: uma fila a mais e a contagem de tentativas num cabeçalho. Uma mensagem com erro permanente leva cerca de 10 s para chegar à DLQ. E uma mensagem que volta do retry pode chegar depois de um evento mais novo da mesma corrida, então o worker não pode sobrescrever o cache com um estado mais antigo.
+
+## 10. Manteria o RabbitMQ num sistema do zero?
 _A preencher depois de implementar o fluxo com o broker._
