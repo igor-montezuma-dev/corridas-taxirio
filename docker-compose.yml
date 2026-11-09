@@ -14,7 +14,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent" ]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -29,7 +29,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,7 +40,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -55,7 +55,7 @@ services:
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -91,7 +91,7 @@ services:
     volumes:
       - ./keys/test-fixtures/jwt-public.test-only.pem:/run/secrets/jwt-public.pem:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/health" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -103,15 +103,30 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+  worker:
+    build: ./worker
+    ports:
+      - "3001:3001"
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      MONGO_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/corridas?authSource=admin
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
   demo:
     image: node:22-alpine
-    profiles: ["demo"]
+    profiles: [ "demo" ]
     working_dir: /app
     volumes:
       - .:/app:ro
     environment:
       API_URL: http://api:3000
-    entrypoint: ["sh", "-c", "apk add --no-cache bash curl > /dev/null && bash scripts/demo.sh"]
+    entrypoint: [ "sh", "-c", "apk add --no-cache bash curl > /dev/null && bash scripts/demo.sh" ]
     depends_on:
       api:
         condition: service_healthy
