@@ -22,3 +22,4 @@
 - A API confia totalmente no token: não há revogação nem verificação de que o usuário ainda existe.
 - A diferença entre 403 e 404 revela quais corridas existem. O UUID reduz o risco, mas em produção eu consideraria devolver 404 nos dois casos.
 - Há vulnerabilidades reportadas pelo `npm audit` em dependências de desenvolvimento (Jest, Oxlint, Nest CLI). `npm audit --omit=dev` mostra 0 em produção. Com mais tempo, atualizaria essas ferramentas e adicionaria o `npm audit --omit=dev` ao CI.
+- A publicação do evento acontece depois do COMMIT, sem transação entre o MySQL e o RabbitMQ. Se ela falhar, a corrida fica correta no banco, mas o evento se perde (fica só o log do erro), e o Redis e o Mongo ficam desatualizados. A solução de produção é o padrão outbox.

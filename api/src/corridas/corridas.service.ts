@@ -11,10 +11,18 @@ import type { CreateCorrida } from './dto/create-corrida.schema';
 import { randomUUID } from 'node:crypto';
 import { AcaoCorrida } from './dto/update-corrida-status.schema';
 import { TRANSICOES } from './transicoes';
+import { EventsPublisher } from '../messaging/events.publisher';
+import { Logger } from '@nestjs/common';
+import { CorridaEvent } from '../messaging/corrida-event';
 
 @Injectable()
 export class CorridasService {
-  constructor(private readonly corridasRepository: CorridasRepository) {}
+  constructor(
+    private readonly corridasRepository: CorridasRepository,
+    private readonly eventsPublisher: EventsPublisher,
+  ) {}
+
+  private readonly logger = new Logger(CorridasService.name);
 
   private canRead(user: AuthenticatedUser, corrida: Corrida): boolean {
     if (user.perfil === 'passageiro') {
@@ -36,13 +44,22 @@ export class CorridasService {
     corrida: Corrida;
     criada: boolean;
   }> {
-    return this.corridasRepository.createWithIdempotency({
+    const result = await this.corridasRepository.createWithIdempotency({
       id: randomUUID(),
       passageiroId: user.sub,
       chave,
       origem: body.origem,
       destino: body.destino,
     });
+
+    if (result.criada) {
+      await this.publishSafely({
+        tipo: 'corrida.criada',
+        corrida: result.corrida,
+      });
+    }
+
+    return result;
   }
 
   async findAll(user: AuthenticatedUser): Promise<Corrida[]> {
@@ -85,6 +102,7 @@ export class CorridasService {
       throw new NotFoundException('Corrida não encontrada');
     }
     if (atualizou) {
+      await this.publishSafely({ tipo: 'corrida.status_alterado', corrida });
       return corrida;
     }
 
@@ -98,5 +116,16 @@ export class CorridasService {
     throw new ConflictException(
       `Não é possível ${acao} uma corrida com status ${corrida.status}`,
     );
+  }
+
+  private async publishSafely(evento: CorridaEvent): Promise<void> {
+    try {
+      await this.eventsPublisher.publish(evento);
+    } catch (error) {
+      this.logger.error(
+        `Falha ao publicar ${evento.tipo} da corrida ${evento.corrida.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 }

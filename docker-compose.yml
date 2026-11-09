@@ -87,6 +87,7 @@ services:
       JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public.pem
       JWT_ISSUER: corridas-test-issuer
       JWT_AUDIENCE: corridas-api
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
     volumes:
       - ./keys/test-fixtures/jwt-public.test-only.pem:/run/secrets/jwt-public.pem:ro
     healthcheck:
