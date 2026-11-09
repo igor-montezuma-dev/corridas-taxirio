@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Pool, RowDataPacket } from 'mysql2/promise';
+import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { DB_POOL } from '../database/database.module';
 import type { Corrida, StatusCorrida } from './corrida';
 
@@ -56,12 +56,12 @@ export class CorridasRepository {
   constructor(@Inject(DB_POOL) private readonly pool: Pool) {}
 
   async findById(id: string): Promise<Corrida | null> {
-  const [rows] = await this.pool.execute<CorridaRow[]>(
-    `SELECT ${COLUNAS} FROM corridas WHERE id = ?`,
-    [id],
-  );
-  return rows[0] ? toCorrida(rows[0]) : null;
-}
+    const [rows] = await this.pool.execute<CorridaRow[]>(
+      `SELECT ${COLUNAS} FROM corridas WHERE id = ?`,
+      [id],
+    );
+    return rows[0] ? toCorrida(rows[0]) : null;
+  }
 
   async findByIdempotencyKey(
     passageiroId: string,
@@ -116,5 +116,26 @@ export class CorridasRepository {
     } finally {
       conn.release();
     }
+  }
+
+  async transitionStatus(
+    id: string,
+    motoristaId: string,
+    de: StatusCorrida,
+    para: StatusCorrida,
+  ): Promise<boolean> {
+    if (de === 'solicitada') {
+      const [result] = await this.pool.execute<ResultSetHeader>(
+        `UPDATE corridas SET status = ?, motorista_id = ? WHERE id = ? AND status = ? AND motorista_id IS NULL`,
+        [para, motoristaId, id, de ],
+      );
+      return result.affectedRows > 0;
+    }
+
+    const [result] = await this.pool.execute<ResultSetHeader>(
+      `UPDATE corridas SET status = ? WHERE id = ? AND status = ? AND motorista_id = ?`,
+      [para, id, de, motoristaId],
+    );
+    return result.affectedRows > 0;
   }
 }

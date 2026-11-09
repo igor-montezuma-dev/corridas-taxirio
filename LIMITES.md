@@ -13,6 +13,8 @@
 - Rejeitar uma `Idempotency-Key` repetida com um body diferente. Hoje a corrida original é devolvida sem avisar o cliente.
 - Imagem base menor para a API (por exemplo, distroless): hoje ~88% dos 265 MB são a imagem do Node.
 - Rotação de chaves do JWT sem invalidar tokens: aceitar mais de uma chave pública, escolhida pelo `kid` do token, ou usar JWKS.
+- Retry do aceite pelo mesmo motorista: se ele aceitou e perdeu a resposta, o reenvio recebe 409. O ideal seria responder 200 quando a corrida já está aceita por ele.
+- Documentação da API com Swagger/OpenAPI. Com o Zod, exigiria uma biblioteca para converter os schemas ou descrevê-los à mão.
 
 ## Riscos conhecidos
 - A API confia totalmente no token: não há revogação nem verificação de que o usuário ainda existe.

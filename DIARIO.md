@@ -127,6 +127,12 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 
 ### GET /corridas/:id
 
-- Achei o `findOne` com `if` aninhados difícil de ler e questionei a estrutura. Extraí a regra de permissão para o método `canRead`, que só devolve `true`/`false`, e usei cláusulas de guarda para sair cedo com 404 e 403. O `findOne` ficou com três passos, e o `canRead` é fácil de testar.
+- Achei o `findOne` com `if` aninhados difícil de ler e analisei. Extraí a regra de permissão para o método `canRead`, que só devolve `true`/`false`, e usei cláusulas de guarda para sair cedo com 404 e 403. O `findOne` ficou com três passos, e o `canRead` é fácil de testar.
 - Testei: dono → 200, outro passageiro → 403, motorista numa solicitada → 200, UUID inexistente → 404, id inválido → 400. [VÍDEO - 403]
 - Um 404 com "Cannot GET /corridas/" me confundiu: era a variável `$ID` vazia no terminal, e o 404 vinha do roteador, não do meu código.
+
+## 2026-11-09 (seg)
+
+### PATCH /corridas/:id/status
+- O corpo recebe a ação (`aceitar`, `iniciar`, `finalizar`), e não o status de destino: o cliente diz o que quer fazer, e o servidor decide o novo estado. As transições ficam numa constante `TRANSICOES`.
+- Bug achado no teste: finalizar uma corrida ainda não aceita dava 403 ("pertence a outro motorista") em vez de 409. O `motoristaId` era `null`, e `null !== 'motorista-1'` deu verdadeiro. Corrigi exigindo que a corrida tenha motorista antes de

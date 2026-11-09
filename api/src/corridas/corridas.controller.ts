@@ -6,6 +6,7 @@ import {
   Headers,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Res,
   UseGuards,
@@ -21,6 +22,9 @@ import type { Corrida } from './corrida';
 import { CorridasService } from './corridas.service';
 import { createCorridaSchema } from './dto/create-corrida.schema';
 import type { CreateCorrida } from './dto/create-corrida.schema';
+import { updateCorridaStatusSchema } from './dto/update-corrida-status.schema';
+
+import type { UpdateCorridaStatus } from './dto/update-corrida-status.schema';
 
 @Controller('corridas')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -57,5 +61,16 @@ export class CorridasController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<Corrida> {
     return this.corridasService.findOne(user, id);
+  }
+
+  @Patch(':id/status')
+  @Roles(['motorista'])
+  updateStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(updateCorridaStatusSchema))
+    body: UpdateCorridaStatus,
+  ): Promise<Corrida> {
+    return this.corridasService.updateStatus(user, id, body.acao);
   }
 }
