@@ -1,6 +1,7 @@
 import {
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,12 +15,15 @@ import { TRANSICOES } from './transicoes';
 import { EventsPublisher } from '../messaging/events.publisher';
 import { Logger } from '@nestjs/common';
 import { CorridaEvent } from '../messaging/corrida-event';
+import Redis from 'ioredis';
+import { REDIS } from '../redis/redis.module';
 
 @Injectable()
 export class CorridasService {
   constructor(
     private readonly corridasRepository: CorridasRepository,
     private readonly eventsPublisher: EventsPublisher,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   private readonly logger = new Logger(CorridasService.name);
@@ -74,7 +78,10 @@ export class CorridasService {
   }
 
   async findOne(user: AuthenticatedUser, id: string): Promise<Corrida> {
-    const corrida = await this.corridasRepository.findById(id);
+    const corrida =
+      (await this.findInCache(id)) ??
+      (await this.corridasRepository.findById(id));
+
     if (!corrida) {
       throw new NotFoundException('Corrida não encontrada');
     }
@@ -82,6 +89,29 @@ export class CorridasService {
       throw new ForbiddenException('Você não tem acesso a esta corrida');
     }
     return corrida;
+  }
+
+  private async findInCache(id: string): Promise<Corrida | null> {
+    try {
+      const key = `corrida:${id}`;
+      const [member] = await this.redis.zrange(key, '-1', '-1');
+      if (!member) {
+        return null;
+      }
+      const cachedData = JSON.parse(member) as Corrida;
+      return {
+        ...cachedData,
+        criadoEm: new Date(cachedData.criadoEm),
+        atualizadoEm: new Date(cachedData.atualizadoEm),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao buscar corrida ${id} no cache: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return null;
+    }
   }
 
   async updateStatus(

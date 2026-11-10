@@ -1,6 +1,12 @@
-import { Global, Inject, Module, OnModuleDestroy } from '@nestjs/common';
+import {
+  Global,
+  Inject,
+  Logger,
+  Module,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
 export const REDIS = Symbol('REDIS');
 
@@ -10,11 +16,17 @@ export const REDIS = Symbol('REDIS');
     {
       provide: REDIS,
       inject: [ConfigService],
-      useFactory: (config: ConfigService): Redis =>
-        new Redis(config.getOrThrow<string>('REDIS_URL'), {
+      useFactory: (config: ConfigService) => {
+        const logger = new Logger('Redis');
+        const client = new Redis(config.getOrThrow<string>('REDIS_URL'), {
           maxRetriesPerRequest: 2,
           connectTimeout: 2000,
-        }),
+        });
+        client.on('error', (error) =>
+          logger.warn(`Conexão com o Redis falhou: ${error.message}`),
+        );
+        return client;
+      },
     },
   ],
   exports: [REDIS],
@@ -22,7 +34,7 @@ export const REDIS = Symbol('REDIS');
 export class RedisModule implements OnModuleDestroy {
   constructor(@Inject(REDIS) private readonly redis: Redis) {}
 
-  async onModuleDestroy(): Promise<void> {
+  async onModuleDestroy() {
     await this.redis.quit();
   }
 }

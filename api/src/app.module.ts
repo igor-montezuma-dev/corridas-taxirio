@@ -7,9 +7,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { CorridasModule } from './corridas/corridas.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), DatabaseModule, AuthModule, CorridasModule, MessagingModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), DatabaseModule, AuthModule, CorridasModule, MessagingModule, RedisModule],
   controllers: [AppController, HealthController],
   providers: [AppService],
 })
