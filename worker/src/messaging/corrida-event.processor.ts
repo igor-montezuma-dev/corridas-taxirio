@@ -11,7 +11,7 @@ function isDuplicateKeyError(error: unknown): boolean {
   return error instanceof MongoServerError && error.code === 11000;
 }
 
-const CACHE_TTL_SEGUNDOS = 24 * 60 * 60;
+const CACHE_TTL_SECONDS = 24 * 60 * 60;
 
 @Injectable()
 export class CorridaEventProcessor {
@@ -55,14 +55,14 @@ export class CorridaEventProcessor {
   }
 
   private async updateCache(event: CorridaEvent): Promise<void> {
-    const chave = `corrida:${event.corrida.id}`;
-    const pontuacao = new Date(event.corrida.atualizadoEm).getTime();
+    const key = `corrida:${event.corrida.id}`;
+    const score = new Date(event.corrida.atualizadoEm).getTime();
 
     const results = await this.redis
       .multi()
-      .zadd(chave, pontuacao, JSON.stringify(event.corrida))
-      .zremrangebyrank(chave, 0, -2)
-      .expire(chave, CACHE_TTL_SEGUNDOS)
+      .zadd(key, score, JSON.stringify(event.corrida))
+      .zremrangebyrank(key, 0, -2)
+      .expire(key, CACHE_TTL_SECONDS)
       .exec();
 
     const failures = results?.filter(([err]) => err !== null);
