@@ -142,3 +142,19 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 - Ordem diferente para cada perfil: o motorista em `ASC` (quem pediu primeiro é atendido primeiro) e o passageiro em `DESC`. Com `ASC` e `LIMIT 50`, um passageiro com muitas corridas nunca veria a atual.
 - Comecei a implementar paginação com `OFFSET`, o `LIMIT ?`/`OFFSET ?` costuma falhar no `execute` do mysql2, e paginação por offset fica instável numa lista que muda o tempo todo.
 - Apaguei o `findAll` e o `findByMotoristaId` do repository, que não eram usados. O `findAll` devolvia todas as corridas sem nenhuma regra de acesso.
+
+### Publicação dos eventos (API)
+- Escolhi exchange topic (`corridas`) e retry com intervalo antes da DLQ. Na primeira justificativa, disse que o topic era "o padrão" do RabbitMQ; o padrão é o direct. O motivo real é deixar cada fila escolher os eventos por padrão.
+- O evento leva a corrida inteira e um `eventId`. Na primeira versão mandei só o `id`, e o TypeScript não reclamou porque o `publish` aceitava qualquer objeto. Tipei o `publish` com o `CorridaEvent`, e a chave de roteamento passou a sair do próprio `tipo`.
+- O Oxlint (`--type-aware`) avisou que o log ia sair como `[object Object]`. Juntei os dois `try/catch` num `publishSafely`, que registra o erro com o id da corrida.
+- Se a publicação falhar, o cliente recebe sucesso: a corrida já está no banco, e um 500 faria o app reenviar com a mesma chave e receber 200, sem publicar nada de qualquer jeito.
+- Criei uma fila de teste no painel e vi as mensagens chegando (`delivery_mode: 2`, `message_id` igual ao `eventId`). Apaguei a fila antes de tirar o print.
+
+### Script de demonstração
+- Cansado de redefinir variáveis no terminal (`$ID` e `$URL` vazios, função quebrada na colagem), criei o `scripts/demo.sh` com os 19 cenários da API. Ele roda dentro de um container (`docker compose run --rm demo`), porque o avaliador só precisa ter Docker.
+- Tirei os acentos das descrições: o `printf` conta bytes, e o alinhamento quebrava.
+
+### Worker
+- Criei o worker dentro de `api/` por engano (estava na pasta errada no CMD). Na raiz já existia uma pasta `worker/` vazia do primeiro dia. Apaguei a vazia e movi o projeto; o `mv` deu "Permission denied" até eu fechar o VS Code e o CMD.
+- Erro "Nest can't resolve dependencies of the CorridasConsumer (?, ...)": faltava o `ConfigModule.forRoot()` no `app.module`. O `?` mostra qual dependência faltou.
+- O worker declara as 3 filas (principal, retry com TTL de 5 s e DLQ). A demonstração gerou os 4 eventos esperados, na ordem, e a fila ficou com 0 mensagens pendentes.
