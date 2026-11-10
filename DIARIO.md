@@ -469,3 +469,34 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Próximo passo**
 
 - `GET /corridas/:id` lendo do cache.
+
+
+---
+
+## 2026-11-10 (ter) — GET /corridas/:id lendo do cache
+
+**O que fiz**
+
+- O `findOne` busca primeiro no Redis (`zrange` com o último membro do sorted set) e, se não achar, no MySQL. O `canRead` roda nos dois caminhos.
+- Testei com o Redis parado: a API respondeu 200 com a mesma corrida, vinda do MySQL. [VÍDEO]
+
+**Por quê**
+
+- O cache é otimização; o MySQL é a fonte da verdade. Se o Redis cair, a leitura não pode cair junto.
+- Só o worker escreve no cache. Se a API também gravasse, o formato da chave e do JSON ficaria em dois serviços.
+- O `updateStatus` continua lendo do MySQL: o cache ainda tem o estado anterior quando o evento é publicado.
+
+**O que quebrou**
+
+- Com o Redis parado, o log encheu de stack traces `[ioredis] Unhandled error event`: o cliente emite `error` a cada reconexão e ninguém escutava. Adicionei um listener que registra um `warn` curto.
+- A mensagem do meu warn era "Reached the max retries per request limit": o ioredis enfileirava o comando e esperava as reconexões antes de falhar. Com `enableOfflineQueue: false` na API, o comando falha na hora e o GET com Redis parado caiu para 0,3 s.
+- O `zrange(chave, -1, -1)` dava erro de tipo (TS2345) numa das sobrecargas do ioredis. Passei os índices como string.
+- O `criadoEm` e o `atualizadoEm` voltavam como string do `JSON.parse`, apesar do tipo `Date`. Converti com `new Date()`.
+
+**Uso de IA**
+
+- Escrevi os métodos, `findOne` e `findInCache` e solicitei que o claude revisasse e fizesse sugestões de melhoria de código.
+
+**Próximo passo**
+
+- Health do worker.
