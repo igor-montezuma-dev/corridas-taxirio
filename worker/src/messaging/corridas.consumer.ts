@@ -1,11 +1,26 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { connect } from 'amqp-connection-manager';
-import type { AmqpConnectionManager, ChannelWrapper } from 'amqp-connection-manager';
+import type {
+  AmqpConnectionManager,
+  ChannelWrapper,
+} from 'amqp-connection-manager';
 import type { ConfirmChannel, ConsumeMessage } from 'amqplib';
-import type { CorridaEvent } from './corrida-event';
 import { CorridaEventProcessor } from './corrida-event.processor';
-import { EXCHANGE, FILA, FILA_DLQ, FILA_RETRY, MAX_TENTATIVAS, RETRY_DELAY_MS } from './topology';
+import {
+  EXCHANGE,
+  FILA,
+  FILA_DLQ,
+  FILA_RETRY,
+  MAX_TENTATIVAS,
+  RETRY_DELAY_MS,
+} from './topology';
+import { CorridaEvent, corridaEventSchema } from './corrida-event.schema';
 
 @Injectable()
 export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
@@ -49,9 +64,24 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
   private async handle(ch: ConfirmChannel, msg: ConsumeMessage): Promise<void> {
     let evento: CorridaEvent;
     try {
-      evento = JSON.parse(msg.content.toString()) as CorridaEvent;
+      const result = corridaEventSchema.safeParse(
+        JSON.parse(msg.content.toString()),
+      );
+      if (!result.success) {
+        this.logger.error(
+          `Evento inválido enviado para a DLQ: ${result.error.issues
+            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+            .join('; ')}`,
+        );
+        await this.forward(ch, FILA_DLQ, msg, 0);
+        ch.ack(msg);
+        return;
+      }
+      evento = result.data;
     } catch {
-      this.logger.error('Mensagem com JSON inválido; enviada direto para a DLQ');
+      this.logger.error(
+        'Mensagem com JSON inválido; enviada direto para a DLQ',
+      );
       await this.forward(ch, FILA_DLQ, msg, 0);
       ch.ack(msg);
       return;
@@ -61,7 +91,8 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       await this.processor.process(evento);
       ch.ack(msg);
     } catch (error) {
-      const tentativas = Number(msg.properties.headers?.['x-tentativas'] ?? 0) + 1;
+      const tentativas =
+        Number(msg.properties.headers?.['x-tentativas'] ?? 0) + 1;
       const destino = tentativas < MAX_TENTATIVAS ? FILA_RETRY : FILA_DLQ;
       this.logger.warn(
         `Falha ao processar ${evento.eventId} (tentativa ${tentativas}); enviando para ${destino}`,
@@ -71,8 +102,12 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       ch.ack(msg);
     }
   }
-
-  private async forward(ch: ConfirmChannel, fila: string, msg: ConsumeMessage, tentativas: number): Promise<void> {
+  private async forward(
+    ch: ConfirmChannel,
+    fila: string,
+    msg: ConsumeMessage,
+    tentativas: number,
+  ): Promise<void> {
     ch.sendToQueue(fila, msg.content, {
       persistent: true,
       messageId: msg.properties.messageId as string,

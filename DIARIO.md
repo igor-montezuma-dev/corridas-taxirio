@@ -158,3 +158,11 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 - Criei o worker dentro de `api/` por engano (estava na pasta errada no CMD). Na raiz já existia uma pasta `worker/` vazia do primeiro dia. Apaguei a vazia e movi o projeto; o `mv` deu "Permission denied" até eu fechar o VS Code e o CMD.
 - Erro "Nest can't resolve dependencies of the CorridasConsumer (?, ...)": faltava o `ConfigModule.forRoot()` no `app.module`. O `?` mostra qual dependência faltou.
 - O worker declara as 3 filas (principal, retry com TTL de 5 s e DLQ). A demonstração gerou os 4 eventos esperados, na ordem, e a fila ficou com 0 mensagens pendentes.
+
+## 2026-11-10 (ter)
+
+### Deduplicação no worker
+- Comparei duas opções: uma lista de eventos processados no Redis, ou o `eventId` como `_id` do histórico no Mongo. Fiquei com o Mongo: a verificação e a gravação são a mesma operação, é durável e seguro com vários workers. Com a lista no Redis, marcar o evento antes faria o retry pular o trabalho que falhou.
+- Testei publicando à mão, pelo painel do RabbitMQ, uma cópia de um evento já processado: o worker registrou "já estava no histórico" e a contagem continuou em 1.
+- Implementei validação dos eventos com o Zod no worker, para conferir em tempo de execução o que chega da fila. Os eventos inválidos vão para a DLQ com o motivo e o campo explícitos no log.
+- Não usei `.strict()` nos eventos, ao contrário da API: se a API passar a mandar um campo novo, o worker não pode quebrar.
