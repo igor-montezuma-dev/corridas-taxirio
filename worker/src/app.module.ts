@@ -4,9 +4,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MessagingModule } from './messaging/messaging.module';
 import { MongoModule } from './mongo/mongo.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), MessagingModule, MongoModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), MessagingModule, MongoModule, RedisModule],
   controllers: [AppController],
   providers: [AppService],
 })

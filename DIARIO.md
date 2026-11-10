@@ -166,3 +166,11 @@ Registro cronológico e informal do que tentei, do que quebrou, de como investig
 - Testei publicando à mão, pelo painel do RabbitMQ, uma cópia de um evento já processado: o worker registrou "já estava no histórico" e a contagem continuou em 1.
 - Implementei validação dos eventos com o Zod no worker, para conferir em tempo de execução o que chega da fila. Os eventos inválidos vão para a DLQ com o motivo e o campo explícitos no log.
 - Não usei `.strict()` nos eventos, ao contrário da API: se a API passar a mandar um campo novo, o worker não pode quebrar.
+
+### Cache no Redis
+- O cache não pode gravar um estado mais antigo por cima de um mais novo (um evento que volta do retry). Ler, comparar e gravar no código teria a mesma janela do SELECT + UPDATE: com dois workers, o evento mais antigo poderia gravar por último.
+- A IA sugeriu um script Lua, que o Redis executa de forma atômica. Rejeitei: não quis outra linguagem num projeto todo em TypeScript. Considerei o `WATCH` + transação, mas ele exige um laço de novas tentativas e uma conexão por atualização, porque o worker processa até 10 mensagens ao mesmo tempo. [IA-rejeitada]
+- Fiquei com um sorted set: cada estado entra com o `atualizadoEm` como pontuação, e o `zremrangebyrank` mantém só o mais recente. A ordem de chegada deixa de importar, e cada evento é uma escrita só.
+- Bug: coloquei a atualização do cache dentro do `try` do histórico. Na duplicata, o `insertOne` lança o erro e o cache nunca seria atualizado. Separei em dois métodos, chamados um depois do outro no `process`.
+- O `exec()` do ioredis não lança erro quando um comando do `multi` falha: devolve o erro dentro do resultado. Passei a conferir.
+- TTL de 24 h: cobre a corrida enquanto ela é acompanhada. Depois disso, a API busca no MySQL.
