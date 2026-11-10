@@ -44,7 +44,7 @@ export interface DocHistory {
       },
     },
   ],
-  exports: [HISTORICO],
+  exports: [HISTORICO, MONGO_CLIENT],
 })
 export class MongoModule implements OnModuleDestroy {
   constructor(@Inject(MONGO_CLIENT) private readonly client: MongoClient) {}

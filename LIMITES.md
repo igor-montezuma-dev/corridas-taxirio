@@ -20,6 +20,7 @@
 - Paginação na listagem: hoje há um limite fixo de 50 corridas. Paginação por OFFSET seria instável numa lista que muda o tempo todo (quando uma corrida é aceita, as seguintes mudam de página); em produção, usaria paginação por cursor (`WHERE criado_em > ?`).
 - A lista do motorista acumula todas as corridas que ele já finalizou. Num app real, ela mostraria só as ativas, e o histórico ficaria em outra tela.
 - O tipo do evento está duplicado na API e no worker. Com mais serviços, eu documentaria o formato do evento como um contrato versionado (um schema JSON e um campo de versão no evento), em vez de compartilhar código, para os serviços continuarem evoluindo de forma independente.
+- O `/health` da API checa só o MySQL. Redis e RabbitMQ ficam de fora de propósito: a API tem fallback para os dois, e incluí-los transformaria uma queda do cache numa queda da API inteira. Uma versão melhor devolveria o estado de cada dependência no corpo (`degraded`) sem mudar o status HTTP, e separaria liveness de readiness no Kubernetes.
 
 ## Riscos conhecidos
 

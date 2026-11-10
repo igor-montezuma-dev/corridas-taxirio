@@ -4,5 +4,6 @@ import { CorridasConsumer } from './corridas.consumer';
 
 @Module({
   providers: [CorridasConsumer, CorridaEventProcessor],
+  exports: [CorridasConsumer],
 })
 export class MessagingModule {}

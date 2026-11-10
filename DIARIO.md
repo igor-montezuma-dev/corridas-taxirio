@@ -470,7 +470,6 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 - `GET /corridas/:id` lendo do cache.
 
-
 ---
 
 ## 2026-11-10 (ter) — GET /corridas/:id lendo do cache
@@ -500,3 +499,30 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Próximo passo**
 
 - Health do worker.
+
+---
+
+## 2026-11-10 (ter) — Health do worker
+
+**O que fiz**
+
+- `/health` no worker que checa RabbitMQ, Mongo e Redis, cada ping com timeout de 2 s, e healthcheck no compose.
+- Testei parando o Mongo: o worker ficou `unhealthy` com `"mongo":false` no corpo, e voltou a `healthy` sozinho quando o Mongo subiu.
+
+**Por quê**
+
+- No worker as três dependências são obrigatórias: sem qualquer uma, o evento não é processado.
+- Na API, o health checa só o MySQL. Redis e RabbitMQ têm fallback; incluí-los faria uma queda do cache derrubar a API inteira.
+
+**O que quebrou**
+
+- O build e o lint passaram, mas o worker caiu ao subir: "Nest can't resolve dependencies of the HealthController (?, ...)". A injeção do Nest só é resolvida em runtime. Faltava exportar o `CorridasConsumer` do `MessagingModule` e depois o `MONGO_CLIENT` do `MongoModule`: o Nest para no primeiro parâmetro que falta, então os erros apareceram um de cada vez.
+- O `healthcheck` ficou indentado dentro do `environment` no compose, e o editor acusou tipo inválido.
+
+**Uso de IA**
+
+- Utilizei o claude para gerar o código boiler plate do health controller .
+
+**Próximo passo**
+
+- Testes automatizados.

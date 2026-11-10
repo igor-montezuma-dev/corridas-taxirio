@@ -61,6 +61,10 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  isConnected(): boolean {
+    return this.connection.isConnected();
+  }
+
   private async handle(ch: ConfirmChannel, msg: ConsumeMessage): Promise<void> {
     let evento: CorridaEvent;
     try {
