@@ -20,7 +20,7 @@ import {
   MAX_TENTATIVAS,
   RETRY_DELAY_MS,
 } from './topology';
-import { CorridaEvent, corridaEventSchema } from './corrida-event.schema';
+import { corridaEventSchema } from './corrida-event.schema';
 
 @Injectable()
 export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
