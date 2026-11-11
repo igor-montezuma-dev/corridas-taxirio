@@ -131,7 +131,7 @@ services:
       mongo:
         condition: service_healthy
   demo:
-    image: node:22-alpine
+    image: node:24-alpine
     profiles: ["demo"]
     working_dir: /app
     volumes:
