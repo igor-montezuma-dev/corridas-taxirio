@@ -1,10 +1,10 @@
 import { ForbiddenException, ConflictException } from '@nestjs/common';
 import type { Redis } from 'ioredis';
-import { AuthenticatedUser } from '../../auth/authenticated-user';
-import { Corrida } from '../corrida';
-import { EventsPublisher } from '../../messaging/events.publisher';
-import { CorridasRepository } from '../corridas.repository';
-import { CorridasService } from '../corridas.service';
+import { AuthenticatedUser } from '../auth/authenticated-user';
+import { EventsPublisher } from '../messaging/events.publisher';
+import { Corrida } from './corrida';
+import { CorridasRepository } from './corridas.repository';
+import { CorridasService } from './corridas.service';
 
 const passageiro1: AuthenticatedUser = {
   sub: 'passageiro-1',
@@ -172,16 +172,13 @@ describe('CorridasService', () => {
   });
 
   it('(e) Passageiro-2 não lê a corrida do passageiro-1, nem vinda do cache (403)', async () => {
- 
-  const corrida = buildCorrida();
-  redis.zrange.mockResolvedValue([JSON.stringify(corrida)]);
+    const corrida = buildCorrida();
+    redis.zrange.mockResolvedValue([JSON.stringify(corrida)]);
 
-  await expect(
-    service.findOne(passageiro2, corrida.id),
-  ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.findOne(passageiro2, corrida.id),
+    ).rejects.toBeInstanceOf(ForbiddenException);
 
-  
-  expect(repository.findById).not.toHaveBeenCalled();
+    expect(repository.findById).not.toHaveBeenCalled();
+  });
 });
-});
-
