@@ -8,6 +8,7 @@ import type {
 } from 'amqp-connection-manager';
 import type { ConfirmChannel } from 'amqplib';
 import { CorridaEvent } from './corrida-event';
+import { correlation } from '../common/correlation';
 
 export const EXCHANGE = 'corridas';
 
@@ -39,6 +40,7 @@ export class EventsPublisher implements OnModuleInit, OnModuleDestroy {
         persistent: true,
         messageId: eventId,
         contentType: 'application/json',
+        correlationId: correlation.get() ?? undefined,
       },
     );
     return eventId;
