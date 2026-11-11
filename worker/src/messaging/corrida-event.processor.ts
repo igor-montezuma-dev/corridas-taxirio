@@ -65,11 +65,11 @@ export class CorridaEventProcessor {
       .expire(key, CACHE_TTL_SECONDS)
       .exec();
 
-    const failures = results?.filter(([err]) => err !== null);
-    if (failures && failures.length > 0) {
-      throw (
-        failures[0]?.[1] ??
-        new Error(`Falha ao atualizar o cache da corrida ${event.corrida.id}`)
+    const failure = results?.find(([error]) => error);
+    if (!results || failure) {
+      const motivo = failure?.[0]?.message ?? 'transação abortada';
+      throw new Error(
+        `Falha ao atualizar o cache da corrida ${event.corrida.id}: ${motivo}`,
       );
     }
   }

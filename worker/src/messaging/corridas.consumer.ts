@@ -66,22 +66,9 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handle(ch: ConfirmChannel, msg: ConsumeMessage): Promise<void> {
-    let evento: CorridaEvent;
+    let payload: unknown;
     try {
-      const result = corridaEventSchema.safeParse(
-        JSON.parse(msg.content.toString()),
-      );
-      if (!result.success) {
-        this.logger.error(
-          `Evento inválido enviado para a DLQ: ${result.error.issues
-            .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-            .join('; ')}`,
-        );
-        await this.forward(ch, FILA_DLQ, msg, 0);
-        ch.ack(msg);
-        return;
-      }
-      evento = result.data;
+      payload = JSON.parse(msg.content.toString());
     } catch {
       this.logger.error(
         'Mensagem com JSON inválido; enviada direto para a DLQ',
@@ -91,6 +78,19 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const result = corridaEventSchema.safeParse(payload);
+    if (!result.success) {
+      this.logger.error(
+        `Evento inválido enviado para a DLQ: ${result.error.issues
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; ')}`,
+      );
+      await this.forward(ch, FILA_DLQ, msg, 0);
+      ch.ack(msg);
+      return;
+    }
+    const evento = result.data;
+
     try {
       await this.processor.process(evento);
       ch.ack(msg);
@@ -99,8 +99,9 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
         Number(msg.properties.headers?.['x-tentativas'] ?? 0) + 1;
       const destino = tentativas < MAX_TENTATIVAS ? FILA_RETRY : FILA_DLQ;
       this.logger.warn(
-        `Falha ao processar ${evento.eventId} (tentativa ${tentativas}); enviando para ${destino}`,
-        error instanceof Error ? error.stack : String(error),
+        `Falha ao processar ${evento.eventId} (tentativa ${tentativas}); enviando para ${destino}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       await this.forward(ch, destino, msg, tentativas);
       ch.ack(msg);
