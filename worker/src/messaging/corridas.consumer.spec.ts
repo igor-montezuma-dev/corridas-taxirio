@@ -76,7 +76,7 @@ describe('CorridasConsumer', () => {
     expect(processor.process).not.toHaveBeenCalled();
   });
 
-  it('(c2) evento que falha no Zod vai para a DLQ sem chamar o processor', async () => {
+  it('(c2) Evento que falha no Zod vai para a DLQ sem chamar o processor', async () => {
     const msg = buildMessage({
       eventId: '123',
       tipo: 'corrida.status_alterado',
@@ -94,7 +94,7 @@ describe('CorridasConsumer', () => {
     expect(processor.process).not.toHaveBeenCalled();
   });
 
-  it('(c3) falha na 1ª tentativa vai para o retry com x-tentativas 1', async () => {
+  it('(c3) Falha na 1ª tentativa vai para o retry com x-tentativas 1', async () => {
     const msg = buildMessage(eventoValido);
     processor.process.mockRejectedValue(new Error('falhou'));
 
@@ -112,7 +112,7 @@ describe('CorridasConsumer', () => {
     expect(ch.ack).toHaveBeenCalledWith(msg);
   });
 
-  it('(c4) falha com x-tentativas 2 vai para a DLQ', async () => {
+  it('(c4) Falha com x-tentativas 2 vai para a DLQ', async () => {
     const msg = buildMessage(eventoValido, { 'x-tentativas': 2 });
     processor.process.mockRejectedValue(new Error('falhou'));
 
@@ -130,7 +130,7 @@ describe('CorridasConsumer', () => {
     expect(ch.ack).toHaveBeenCalledWith(msg);
   });
 
-  it('(c5) processamento com sucesso só faz ack', async () => {
+  it('(c5) Processamento com sucesso só faz ack', async () => {
     const msg = buildMessage(eventoValido);
 
     await handle(ch as unknown as ConfirmChannel, msg);
@@ -139,5 +139,19 @@ describe('CorridasConsumer', () => {
     expect(ch.sendToQueue).not.toHaveBeenCalled();
     expect(ch.waitForConfirms).not.toHaveBeenCalled();
     expect(ch.ack).toHaveBeenCalledWith(msg);
+  });
+
+  it('(c6) O retry mantém o correlationId da mensagem original', async () => {
+    const msg = buildMessage(eventoValido);
+    msg.properties.correlationId = 'rastro-123';
+    processor.process.mockRejectedValue(new Error('falhou'));
+
+    await handle(ch as unknown as ConfirmChannel, msg);
+
+    expect(ch.sendToQueue).toHaveBeenCalledWith(
+      FILA_RETRY,
+      msg.content,
+      expect.objectContaining({ correlationId: 'rastro-123' }),
+    );
   });
 });

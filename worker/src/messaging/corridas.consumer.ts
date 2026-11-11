@@ -21,6 +21,8 @@ import {
   RETRY_DELAY_MS,
 } from './topology';
 import { corridaEventSchema } from './corrida-event.schema';
+import { correlation } from '../common/correlation';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
@@ -55,7 +57,11 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
 
         await ch.prefetch(10);
         await ch.consume(FILA, (msg) => {
-          if (msg) void this.handle(ch, msg);
+          if (!msg) return;
+          const id =
+            (msg.properties.correlationId as string | undefined) ??
+            randomUUID();
+          correlation.run(id, () => void this.handle(ch, msg));
         });
       },
     });
@@ -107,6 +113,7 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       ch.ack(msg);
     }
   }
+
   private async forward(
     ch: ConfirmChannel,
     fila: string,
@@ -116,6 +123,7 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
     ch.sendToQueue(fila, msg.content, {
       persistent: true,
       messageId: msg.properties.messageId as string,
+      correlationId: msg.properties.correlationId as string,
       contentType: msg.properties.contentType as string,
       headers: { ...msg.properties.headers, 'x-tentativas': tentativas },
     });
