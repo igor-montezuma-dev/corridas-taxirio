@@ -606,3 +606,67 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Próximo passo**
 
 - CI no GitHub Actions e UI mínima.
+
+
+---
+
+## 2026-11-11 (qua) — UI
+
+**O que fiz**
+
+- UI em React servida pelo nginx no compose (porta 8080), com proxy de `/api` para a API.
+- Passageiro pede corrida e acompanha; motorista aceita, inicia e finaliza; a lista atualiza a cada 3 s com o TanStack Query; toasts nas ações e nos erros.
+- Separei em camadas: `api/` (HTTP puro), hooks do TanStack Query, regras, componentes base em `components/ui/` e componentes por feature. Estilização com Tailwind.
+- Lint, testes das funções puras (Vitest) e build da UI no CI.
+
+**Por quê**
+
+- O proxy no nginx deixa UI e API na mesma origem: a API não precisou de CORS.
+- O token fica só em memória, não no `localStorage`.
+- A `Idempotency-Key` só muda depois de uma criação confirmada; o botão de reenvio mostra a repetição devolvendo 200 sem criar outra corrida.
+- A UI só decide qual botão mostrar; quem decide se a ação vale é a API (409 e 403 aparecem como toast).
+
+**O que quebrou**
+
+- O `docker compose up --build ui` falhou com "error getting credentials" ao baixar o `nginx:1.30-alpine`: o WSL não conseguiu consultar o gerenciador de credenciais do Docker Desktop. Resolvi baixando a imagem separadamente.
+- Depois das mudanças, os toasts não apareciam: o container ainda servia o build antigo. Reconstruí a imagem e recarreguei sem cache.
+
+**Uso de IA**
+
+- A UI foi gerada pelo Claude a partir dos requisitos que defini (fluxo, idempotência visível, erros com status) e das decisões de estrutura que pedi (camadas, TanStack Query, toasts, Tailwind). Separei a camada `api/` e revisei o restante; as decisões estão documentadas em `ui/README.md`.
+
+**Próximo passo**
+
+- Parte 2: logs JSON com `correlation_id`.
+
+
+---
+
+## 2026-11-11 (qua) — Logs JSON com correlation_id
+
+**O que fiz**
+
+- Logs JSON com `nestjs-pino` na API e no worker.
+- Na API, um middleware aceita o `X-Request-Id` do cliente (se for válido) ou gera um UUID, guarda num `AsyncLocalStorage` e devolve o id no header da resposta. Todo log da requisição sai com `correlation_id`.
+- O publisher coloca o id na propriedade `correlationId` da mensagem. O worker lê essa propriedade e processa a mensagem dentro do mesmo contexto; o `forward` mantém o id no retry e na DLQ.
+- Testei mandando `X-Request-Id: teste-rastro-1` num POST: o mesmo id apareceu no log da API e no do worker.
+
+**Por quê**
+
+- `AsyncLocalStorage` em vez de passar o id como parâmetro: o id atravessaria controller, service, repository e publisher, e bastaria uma função esquecer de repassar para o rastro se perder.
+- `correlationId` nas propriedades da mensagem, e não no corpo: o corpo é o contrato de negócio, validado e gravado pelo worker; o id é metadado de observabilidade, como o `X-Request-Id` num header HTTP. É uma propriedade padrão do AMQP.
+- Logs com lista branca (`serializers` com método, URL e status) em vez de esconder campos sensíveis um a um.
+
+**O que quebrou**
+
+- O primeiro log gravava todos os headers da requisição, inclusive o `authorization` (antes do `redact`) e um cookie de sessão de outro sistema. Troquei por `serializers` que registram só método, URL e status.
+- O id aparecia só dentro de `req.id`; com `quietReqLogger` ele passou a ser um campo próprio em todos os logs da requisição.
+- O `forward` montava a mensagem de retry sem o `correlationId`: cada tentativa ganharia um id novo, e o rastro se perderia justamente no evento que falhou. O teste (c6) cobre isso.
+
+**Uso de IA**
+
+- O Claude me auxiliou a configurar o Pino nos dois serviços e o contexto com `AsyncLocalStorage`, e explicou cada opção. A propagação no publisher e no consumer eu escrevi com auxílio dele; ele corrigiu o consumer depois que deixei um `consume` duplicado.
+
+**Próximo passo**
+
+- Métricas na API e no worker.
