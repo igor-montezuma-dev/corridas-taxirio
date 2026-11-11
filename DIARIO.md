@@ -526,3 +526,59 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Próximo passo**
 
 - Testes automatizados.
+
+
+---
+
+## 2026-11-10 (ter) — Testes unitários do service
+
+**O que fiz**
+
+- Testes do `CorridasService` com o repository, o publisher e o Redis mockados, instanciando o service direto, sem o módulo do Nest.
+- Cenários: aceite com publicação do evento, criação com publicação do `corrida.criada`.
+
+**Por quê**
+
+- Unitários rodam em milissegundos, sem Docker, e entram fácil no CI. A integração de ponta a ponta já está coberta pelo `demo.sh`.
+
+**O que quebrou**
+
+- O Jest falhou com "Must use import to load ES Module" no `@nestjs/common`: o Nest 12 é distribuído como ESM, e o projeto é CJS. Em produção funciona porque o Node carrega ESM via `require`. No Jest, nem o Node 24 resolveu sozinho: faltava a flag `--experimental-vm-modules`, que fixei no script `test`. A alternativa era fazer o Jest transformar o `node_modules`.
+
+**Uso de IA**
+
+- O Claude escreveu o setup dos mocks e o primeiro teste como exemplo, para que fosse usado como base na criação dos outros testes.
+
+**Próximo passo**
+
+- Terminar os cenários de falha (403, 409 e leitura pelo cache) e montar o CI.
+
+
+---
+
+
+---
+
+## 2026-11-11 (qua) — Testes unitários do service
+
+**O que fiz**
+
+- Testes do `CorridasService` com o repository, o publisher e o Redis mockados, instanciando o service direto, sem o módulo do Nest.
+- Cenários: aceite com publicação do evento; criação com `corrida.criada`; repetição com a mesma chave sem segundo evento; motorista-2 finalizando corrida do motorista-1 (403); iniciar corrida solicitada (409, o bug do `null` que já tinha aparecido); passageiro-2 lendo corrida do passageiro-1 vinda do cache (403, sem consultar o MySQL).
+
+**Por quê**
+
+- Unitários rodam em milissegundos, sem Docker, e entram fácil no CI. A integração de ponta a ponta já está coberta pelo `demo.sh`.
+- Escolhi os cenários pelo que só o meu código decide: as regras de transição, de permissão e de publicação. O que o MySQL garante (a PK da idempotência, o UPDATE atômico) fica com a demo.
+
+**O que quebrou**
+
+- O Jest falhou com "Must use import to load ES Module" no `@nestjs/common`: o Nest 12 é distribuído como ESM, e o projeto é CJS. Em produção funciona porque o Node carrega ESM via `require`. No Jest, nem o Node 24 resolveu sozinho: faltava a flag `--experimental-vm-modules`, que fixei no script `test`. A alternativa era fazer o Jest transformar o `node_modules`.
+
+**Uso de IA**
+
+- O Claude escreveu o setup dos mocks, gerando os códigos bolier plates. Também utilizei a assistência dele para padronização do código e melhorias pontuais em alguns trechos
+
+**Próximo passo**
+
+- CI no GitHub Actions.
