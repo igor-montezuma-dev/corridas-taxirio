@@ -527,7 +527,6 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 - Testes automatizados.
 
-
 ---
 
 ## 2026-11-10 (ter) — Testes unitários do service
@@ -553,13 +552,11 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 - Terminar os cenários de falha (403, 409 e leitura pelo cache) e montar o CI.
 
+---
 
 ---
 
-
----
-
-## 2026-11-11 (qua) — Testes unitários do service
+## 2026-11-11 (qua) — Testes unitários do service (API)
 
 **O que fiz**
 
@@ -574,6 +571,7 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **O que quebrou**
 
 - O Jest falhou com "Must use import to load ES Module" no `@nestjs/common`: o Nest 12 é distribuído como ESM, e o projeto é CJS. Em produção funciona porque o Node carrega ESM via `require`. No Jest, nem o Node 24 resolveu sozinho: faltava a flag `--experimental-vm-modules`, que fixei no script `test`. A alternativa era fazer o Jest transformar o `node_modules`.
+- Na primeira versão do teste de leitura pelo cache, mockei também o `findById` com a mesma corrida: o teste passaria mesmo se o cache estivesse quebrado. Tirei o mock e passei a verificar que o `findById` não foi chamado.
 
 **Uso de IA**
 
@@ -581,4 +579,30 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 **Próximo passo**
 
-- CI no GitHub Actions.
+- Testes do worker.
+
+---
+
+## 2026-11-11 (qua) — Testes do worker
+
+**O que fiz**
+
+- Testes do processor, com a coleção do Mongo e o pipeline do Redis mockados: evento novo, duplicata que ainda atualiza o cache, outro erro do Mongo sem tocar no cache e falhas do Redis.
+- Testes do consumer, chamando o `handle` com o canal e a mensagem mockados: JSON inválido e evento inválido para a DLQ, retry na 1ª falha, DLQ na 3ª, sucesso só com ack, e o ack sempre depois da confirmação do envio.
+
+**Por quê**
+
+- A deduplicação, o cache ordenado e o roteamento entre retry e DLQ são a lógica central do worker. Até aqui só estavam cobertos por testes manuais pelo painel do RabbitMQ.
+
+**O que quebrou**
+
+- O teste do `exec` devolvendo `null` (transação abortada) achou um bug: o `updateCache` só conferia erros dentro do resultado, e um `null` passava como sucesso; a mensagem receberia ack sem o cache ser atualizado. O código também lançava o resultado da tupla em vez do erro, e o teste de falha do Redis passava por coincidência. Corrigi as duas coisas.
+- Revendo o consumer para testar, vi que o `try` do `JSON.parse` tinha voltado a envolver a validação e o envio para a DLQ: uma falha no envio seria registrada como "JSON inválido" e a mensagem iria duas vezes para a DLQ. Deixei só o `JSON.parse` dentro do `try`.
+
+**Uso de IA**
+
+- O Claude escreveu o setup dos mocks, gerando os códigos bolier plates. Também utilizei a assistência dele para padronização do código e melhorias pontuais em alguns trechos.
+
+**Próximo passo**
+
+- CI no GitHub Actions e UI mínima.
