@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-fundo: #f5f4f0;
+  --color-borda: #e3e0d8;
+  --color-texto: #1f1e1c;
+  --color-suave: #6b6862;
+  --color-destaque: #1d6b5f;
+  --color-destaque-claro: #e6f2ef;
+  --color-erro: #a3362b;
+  --color-erro-claro: #fbece9;
+  --color-neutro: #ecebe7;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-fundo font-sans text-texto;
+  }
+}

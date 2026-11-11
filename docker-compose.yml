@@ -130,6 +130,13 @@ services:
         condition: service_healthy
       mongo:
         condition: service_healthy
+  ui:
+    build: ./ui
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
   demo:
     image: node:24-alpine
     profiles: ["demo"]
