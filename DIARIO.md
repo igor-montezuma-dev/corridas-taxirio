@@ -494,7 +494,7 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 **Uso de IA**
 
-- Escrevi os métodos, `findOne` e `findInCache` e solicitei que o claude revisasse e fizesse sugestões de melhoria de código.
+- Escrevi os métodos, `findOne` e `findInCache` e solicitei que o Claude revisasse e fizesse sugestões de melhoria de código.
 
 **Próximo passo**
 
@@ -521,38 +521,11 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 **Uso de IA**
 
-- Utilizei o claude para gerar o código boiler plate do health controller .
+- Utilizei o Claude para gerar o código boilerplate do health controller.
 
 **Próximo passo**
 
 - Testes automatizados.
-
----
-
-## 2026-11-10 (ter) — Testes unitários do service
-
-**O que fiz**
-
-- Testes do `CorridasService` com o repository, o publisher e o Redis mockados, instanciando o service direto, sem o módulo do Nest.
-- Cenários: aceite com publicação do evento, criação com publicação do `corrida.criada`.
-
-**Por quê**
-
-- Unitários rodam em milissegundos, sem Docker, e entram fácil no CI. A integração de ponta a ponta já está coberta pelo `demo.sh`.
-
-**O que quebrou**
-
-- O Jest falhou com "Must use import to load ES Module" no `@nestjs/common`: o Nest 12 é distribuído como ESM, e o projeto é CJS. Em produção funciona porque o Node carrega ESM via `require`. No Jest, nem o Node 24 resolveu sozinho: faltava a flag `--experimental-vm-modules`, que fixei no script `test`. A alternativa era fazer o Jest transformar o `node_modules`.
-
-**Uso de IA**
-
-- O Claude escreveu o setup dos mocks e o primeiro teste como exemplo, para que fosse usado como base na criação dos outros testes.
-
-**Próximo passo**
-
-- Terminar os cenários de falha (403, 409 e leitura pelo cache) e montar o CI.
-
----
 
 ---
 
@@ -575,7 +548,7 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 **Uso de IA**
 
-- O Claude escreveu o setup dos mocks, gerando os códigos bolier plates. Também utilizei a assistência dele para padronização do código e melhorias pontuais em alguns trechos
+- O Claude escreveu o setup dos mocks, gerando os códigos boilerplate. Também utilizei a assistência dele para padronização do código e melhorias pontuais em alguns trechos
 
 **Próximo passo**
 
@@ -601,12 +574,40 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 **Uso de IA**
 
-- O Claude escreveu o setup dos mocks, gerando os códigos bolier plates. Também utilizei a assistência dele para padronização do código e melhorias pontuais em alguns trechos.
+- O Claude escreveu o setup dos mocks, gerando os códigos boilerplate. Também utilizei a assistência dele para padronização do código e melhorias pontuais em alguns trechos.
 
 **Próximo passo**
 
 - CI no GitHub Actions e UI mínima.
 
+---
+
+## 2026-11-11 (qua) — CI no GitHub Actions
+
+**O que fiz**
+
+- Workflow com lint, testes e build da API, do worker e da UI em paralelo (matrix) e, depois deles, o build das três imagens Docker.
+- Node 24 nos Dockerfiles e na imagem da demo, igual ao CI e ao ambiente local.
+- Lint passou a falhar com qualquer aviso (`--deny-warnings`).
+
+**Por quê**
+
+- As imagens só são construídas se lint, testes e build passarem: não adianta gastar tempo de Docker com código quebrado.
+- O `fail-fast: false` deixa ver o resultado de todos os serviços mesmo quando um falha.
+
+**O que quebrou**
+
+- O worker não tinha testes e o Jest saía com erro ("No tests found"); adicionei `--passWithNoTests` antes de escrever os testes dele. O script de lint apontava para a pasta `test/`, que apaguei junto com o exemplo do CLI.
+- A primeira execução mostrou avisos de que o `checkout@v4` e o `setup-node@v4` usam o Node 20, descontinuado no GitHub Actions. Atualizei para a v7.
+- Um import não usado no consumer só apareceu como aviso no CI, que passou verde. Por isso liguei o `--deny-warnings`.
+
+**Uso de IA**
+
+- O Claude escreveu o workflow, e eu revisei e pedi explicação da matrix, do cache e do `needs`.
+
+**Próximo passo**
+
+- UI mínima.
 
 ---
 
@@ -639,7 +640,6 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 
 - Parte 2: logs JSON com `correlation_id`.
 
-
 ---
 
 ## 2026-11-11 (qua) — Logs JSON com correlation_id
@@ -670,3 +670,63 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Próximo passo**
 
 - Métricas na API e no worker.
+
+---
+
+## 2026-11-11 (qua) — Métricas e alertas
+
+**O que fiz**
+
+- `/metrics` na API (requisições e duração por método, rota e status) e no worker (eventos por tipo e resultado, duração do processamento), com o `@prometheus-io/client`.
+- Prometheus coletando API, worker e RabbitMQ. Dois alertas, em `observability/alerts.yml` e no formato `PrometheusRule` em `k8s/observability/`: taxa de 5xx acima de 5% por 5 minutos, e qualquer evento na DLQ.
+- Testei o alerta da DLQ publicando uma mensagem inválida pela API do RabbitMQ: o alerta disparou, e o `correlation_id` da mensagem apareceu no log do worker.
+
+**Por quê**
+
+- A label `route` usa o padrão da rota (`/corridas/:id`), e não a URL: com o id na label, cada corrida viraria uma série nova (cardinalidade), e a memória da API e do Prometheus cresceria sem limite. Rotas inexistentes viram `nao_encontrada`.
+- O alerta de 5xx usa proporção, não número absoluto, e ignora 4xx, que são erros do cliente e fazem parte do funcionamento normal.
+- O alerta da DLQ não tem `for`: cada evento na DLQ é uma corrida com histórico ou cache desatualizado.
+- A duração no worker mede só o processamento (Mongo e Redis), sem o envio para o RabbitMQ, para que a métrica aponte um culpado.
+
+**O que quebrou**
+
+- O `prom-client` foi descontinuado e substituído pelo `@prometheus-io/client`, do repositório oficial do Prometheus; a API é a mesma.
+- O `/metrics` do worker devolvia 404: o controller gerado pelo CLI estava vazio.
+- O alerta da DLQ não disparou no primeiro teste. O contador estava em 1, mas o `increase` dava 0: a série só passou a existir no primeiro `inc`, então o Prometheus nunca viu o salto de 0 para 1. Passei a criar as séries com 0 quando o worker sobe, e o alerta disparou no teste seguinte
+
+**Uso de IA**
+
+- Utilizei o Claude para me auxiliar a estruturar as métricas e os arquivos de configuração do Prometheus e dos alertas.
+
+**Próximo passo**
+
+- README, DECISIONS, LIMITES, vídeo e envio.
+
+---
+
+## 2026-11-11 (qua) — Revisão do enunciado e fila
+
+**O que fiz**
+
+- Reli o PDF item por item e comparei com o que estava pronto. Faltavam, na Parte 2: o tamanho e o atraso da fila, o trace com OpenTelemetry, o k6 e a justificativa dos alertas; e o `PrometheusRule` estava no caminho errado.
+- Tamanho da fila: o Prometheus passou a coletar o endpoint detalhado do RabbitMQ (`/metrics/detailed`, família `queue_coarse_metrics`), que traz as mensagens por fila.
+- Atraso da fila: histograma no worker com o tempo entre o `atualizadoEm` da corrida e o início do processamento.
+- Movi o `PrometheusRule` para `observability/alerts-prometheusrule.yaml` e escrevi a justificativa dos alertas em `observability/ALERTAS.md`.
+
+**Por quê**
+
+- O enunciado lista tamanho e atraso da fila entre as métricas mínimas.
+- O atraso mede o quanto o evento está velho quando é processado; um retry aumenta esse número, e é isso que eu quero ver, porque é o tempo real em que o cache fica desatualizado.
+- Priorizei os itens baratos e explícitos do enunciado, para não gastar tempo em partes que eu não conseguiria terminar nem explicar bem. O OpenTelemetry e a Parte 3 ficam para depois da entrega obrigatória; se não couberem, vão para o `LIMITES.md` com o motivo.
+
+**O que quebrou**
+
+- A pasta `k8s/` sumiu ao mover o `PrometheusRule`, e o `git add k8s/` falhou. Recriei a pasta com um README apontando para o LIMITES, porque ela faz parte da estrutura pedida.
+
+**Uso de IA**
+
+- Utilizei o claude para me auxiliar na construção do fluxo do atraso da fila.
+
+**Próximo passo**
+
+- DECISIONS (com a entrada obrigatória do RabbitMQ), LIMITES, k6 se der tempo, README, teste com clone limpo e vídeo.
