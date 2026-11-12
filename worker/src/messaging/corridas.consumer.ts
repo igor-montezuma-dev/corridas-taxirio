@@ -23,6 +23,7 @@ import {
 import { corridaEventSchema } from './corrida-event.schema';
 import { correlation } from '../common/correlation';
 import { randomUUID } from 'node:crypto';
+import { processedEvents, processingDuration } from '../metrics/metrics';
 
 @Injectable()
 export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
@@ -79,6 +80,7 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         'Mensagem com JSON inválido; enviada direto para a DLQ',
       );
+      processedEvents.inc({ type: 'unknown', result: 'invalid' });
       await this.forward(ch, FILA_DLQ, msg, 0);
       ch.ack(msg);
       return;
@@ -91,19 +93,27 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
           .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
           .join('; ')}`,
       );
+      processedEvents.inc({ type: 'unknown', result: 'invalid' });
       await this.forward(ch, FILA_DLQ, msg, 0);
       ch.ack(msg);
       return;
     }
     const evento = result.data;
+    const endTimer = processingDuration.startTimer({
+      type: evento.tipo,
+    });
 
     try {
       await this.processor.process(evento);
-      ch.ack(msg);
     } catch (error) {
+      endTimer();
       const tentativas =
         Number(msg.properties.headers?.['x-tentativas'] ?? 0) + 1;
       const destino = tentativas < MAX_TENTATIVAS ? FILA_RETRY : FILA_DLQ;
+      processedEvents.inc({
+        type: evento.tipo,
+        result: destino === FILA_DLQ ? 'dlq' : 'retry',
+      });
       this.logger.warn(
         `Falha ao processar ${evento.eventId} (tentativa ${tentativas}); enviando para ${destino}: ${
           error instanceof Error ? error.message : String(error)
@@ -111,7 +121,12 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       );
       await this.forward(ch, destino, msg, tentativas);
       ch.ack(msg);
+      return;
     }
+
+    endTimer();
+    processedEvents.inc({ type: evento.tipo, result: 'success' });
+    ch.ack(msg);
   }
 
   private async forward(

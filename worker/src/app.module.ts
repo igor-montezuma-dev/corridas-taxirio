@@ -6,6 +6,7 @@ import { RedisModule } from './redis/redis.module';
 import { HealthController } from './health/health.controller';
 import { LoggerModule } from 'nestjs-pino';
 import { correlation } from './common/correlation';
+import { MetricsController } from './metrics/metrics.controller';
 
 @Module({
   imports: [
@@ -33,6 +34,6 @@ import { correlation } from './common/correlation';
     MongoModule,
     RedisModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, MetricsController],
 })
 export class AppModule {}
