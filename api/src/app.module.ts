@@ -7,6 +7,7 @@ import { CorridasModule } from './corridas/corridas.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { RedisModule } from './redis/redis.module';
 import { LoggerModule } from 'nestjs-pino';
+import { MetricsController } from './metrics/metrics.controller';
 
 @Module({
   imports: [
@@ -35,6 +36,6 @@ import { LoggerModule } from 'nestjs-pino';
     MessagingModule,
     RedisModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, MetricsController],
 })
 export class AppModule {}
