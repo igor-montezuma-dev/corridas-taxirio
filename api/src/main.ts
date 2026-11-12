@@ -37,9 +37,9 @@ async function bootstrap() {
 
     res.on('finish', () => {
       const rota = req.route as { path?: string } | undefined;
-      const route = rota?.path
-        ? `${req.baseUrl}${rota.path}`
-        : 'nao_encontrada';
+      const path = rota?.path;
+      const casouRota = path !== undefined && path !== '{/*splat}';
+      const route = casouRota ? `${req.baseUrl}${path}` : 'nao_encontrada';
       const labels = {
         method: req.method,
         route,
