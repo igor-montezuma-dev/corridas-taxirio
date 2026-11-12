@@ -1,2 +1,23 @@
-# Regras de alerta. Os dois alertas da Parte 2 entram aqui.
-groups: []
+groups:
+  - name: corridas
+    rules:
+      - alert: ApiTaxaDeErros5xxAlta
+        expr: |
+          sum(rate(http_requests_total{job="api", status_code=~"5.."}[5m]))
+            /
+          sum(rate(http_requests_total{job="api"}[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Mais de 5% das requisições da API estão falhando com 5xx
+          description: "Taxa de 5xx nos últimos 5 minutos: {{ $value | humanizePercentage }}"
+
+      - alert: EventosNaDlq
+        expr: sum(increase(events_processed_total{job="worker", result=~"dlq|invalid"}[10m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Eventos foram enviados para a DLQ do worker
+          description: "{{ $value | humanize }} evento(s) na DLQ nos últimos 10 minutos. Investigue pelo correlation_id nos logs."

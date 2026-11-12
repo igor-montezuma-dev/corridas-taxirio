@@ -14,10 +14,10 @@ scrape_configs:
     static_configs:
       - targets: ["rabbitmq:15692"]
 
-  # Entram quando a API e o worker existirem:
-  # - job_name: api
-  #   static_configs:
-  #     - targets: ["api:3000"]
-  # - job_name: worker
-  #   static_configs:
-  #     - targets: ["worker:3001"]
+  - job_name: api
+    static_configs:
+      - targets: ["api:3000"]
+
+  - job_name: worker
+    static_configs:
+      - targets: ["worker:3001"]
