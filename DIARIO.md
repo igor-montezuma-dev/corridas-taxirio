@@ -746,3 +746,15 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Uso de IA:** a IA me ajudou a interpretar as saídas do teste e a identificar a causa do `{/*splat}`. Apliquei e validei a correção no repositório principal, não no clone, para manter o clone como uma cópia intocada do que o avaliador vai baixar.
 
 **Próximo passo:** gravar o vídeo e enviar a entrega.
+
+## Teste de carga com k6 (12/11)
+
+**O que fiz:** script k6 com o ciclo completo da corrida (criar, consultar, aceitar, iniciar e finalizar), rampa até 20 usuários virtuais, e acompanhei a API e o worker pelo Prometheus durante a carga.
+
+**Por quê:** fechar o item de carga da Parte 2 e ver se o worker acompanha a API sob pressão constante.
+
+**O que quebrou:** nada no sistema: 7.700 requisições, 0% de erro. O pull da imagem falhou no WSL (helper de credenciais do Docker Desktop), resolvido com `docker pull` antes. O p95 do Prometheus saiu maior que o do k6 (~48 ms contra 34 ms no `POST`), por causa da interpolação dentro dos buckets do histograma.
+
+**Uso de IA:** a IA auxiliou com a geração do script para o K6. A leitura dos resultados e os limites do teste estão no `loadtest/RESULTADO.md`.
+
+**Próximo passo:** gravar o vídeo e enviar.

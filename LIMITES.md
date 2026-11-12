@@ -6,7 +6,6 @@ O desafio sugere 6 a 8 horas e pede priorização. Priorizei uma Parte 1 sólida
 
 - Parte 3 (Kubernetes): não implementada. Subir a aplicação e as dependências no kind levaria de 4 a 6 horas, e preferi garantir a entrega obrigatória. Os alertas já estão no formato `PrometheusRule`, e o health da API foi pensado para a separação entre liveness e readiness. O KEDA, bônus da Parte 3, ficou de fora junto.
 - OpenTelemetry: o rastreamento entre serviços é feito com `correlation_id` nos logs, propagado pelo header HTTP e pela propriedade `correlationId` da mensagem. O OTel acrescentaria spans com o tempo de cada etapa (HTTP, MySQL, publish, consume, Mongo, Redis); a troca seria pelo contexto W3C `traceparent`, no mesmo caminho.
-- Teste de carga com k6: (remover este item se o k6 for entregue).
 - Cancelamento de corrida: o desafio não pede, e ficou de fora para manter o foco no fluxo principal.
 - Filtro de corridas por proximidade: todos os motoristas veem todas as corridas `solicitada`.
 - Notificação em tempo real para motoristas: a UI atualiza a lista por polling. Com mais tempo, usaria WebSocket ou SSE.

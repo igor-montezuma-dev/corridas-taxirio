@@ -19,6 +19,7 @@ Prometheus coleta /metrics da API, do worker e do RabbitMQ, e avalia os alertas.
 - [Como testar o fluxo](#como-testar-o-fluxo)
 - [Testes automatizados e CI](#testes-automatizados-e-ci)
 - [Como validar a observabilidade](#como-validar-a-observabilidade)
+- [Teste de carga (k6)](#teste-de-carga-k6)
 - [O que foi entregue](#o-que-foi-entregue)
 - [Documentação](#documentação)
 - [Uso de IA](#uso-de-ia)
@@ -196,12 +197,33 @@ docker compose logs worker | grep teste-alerta-dlq
 
 Se o worker tiver acabado de subir, espere uns 30 s antes de publicar, para o Prometheus registrar o contador zerado.
 
+## Teste de carga (k6)
+
+O script `loadtest/corridas.js` simula o ciclo completo da corrida (criar, consultar, aceitar, iniciar e finalizar), com rampa até 20 usuários virtuais por 1min45 e thresholds de erro e de p95 por rota. Com a stack de pé, no WSL ou no Linux:
+
+```bash
+TOKENS=$(docker run --rm -v "$PWD":/app -w /app node:24-alpine node scripts/generate-token.mjs)
+export TOKEN_P1=$(echo "$TOKENS" | grep -A1 "passageiro-1" | tail -1)
+export TOKEN_M1=$(echo "$TOKENS" | grep -A1 "motorista-1" | tail -1)
+
+docker run --rm -i --network corridas_default \
+  -v "$PWD/loadtest":/scripts \
+  -e TOKEN_P1 -e TOKEN_M1 \
+  grafana/k6 run -q /scripts/corridas.js
+```
+
+No Git Bash, prefixe o `docker run` do k6 com `MSYS_NO_PATHCONV=1`.
+
+Resultado e leitura em [`loadtest/RESULTADO.md`](loadtest/RESULTADO.md): 7.700 requisições, 0% de erro, p95 abaixo de 35 ms nas escritas e atraso da fila no worker abaixo de 50 ms.
+
+> **WSL com Docker Desktop:** se aparecer `error getting credentials`, baixe a imagem antes com `docker pull grafana/k6` e repita o comando. É uma falha do helper de credenciais do Docker Desktop dentro do WSL, não do projeto.
+
 ## O que foi entregue
 
 | Parte | Situação |
 |---|---|
 | **1. Fundação** | Completa: compose com todos os serviços, JWT (401 e 403), idempotência no `POST`, tolerância a mensagem duplicada no worker, testes automatizados e CI. |
-| **2. Operar** | Logs JSON com `correlation_id` da API ao worker; métricas na API e no worker (taxa, latência, erros, tamanho e atraso da fila); dois alertas com justificativa. Sem OpenTelemetry e sem k6. |
+| **2. Operar** | Logs JSON com `correlation_id` da API ao worker; métricas na API e no worker (taxa, latência, erros, tamanho e atraso da fila); dois alertas com justificativa; teste de carga com k6. Sem OpenTelemetry. |
 | **3. Kubernetes** | Não implementada. |
 
 O que ficou de fora, e por quê, está em [`LIMITES.md`](LIMITES.md).
@@ -213,6 +235,7 @@ O que ficou de fora, e por quê, está em [`LIMITES.md`](LIMITES.md).
 - [`LIMITES.md`](LIMITES.md): o que não foi feito, o que faria com mais tempo e os riscos conhecidos.
 - [`ui/README.md`](ui/README.md): a estrutura e as decisões da UI.
 - [`observability/ALERTAS.md`](observability/ALERTAS.md): a justificativa dos alertas.
+- [`loadtest/RESULTADO.md`](loadtest/RESULTADO.md): o resultado e a leitura do teste de carga.
 
 ## Uso de IA
 
@@ -229,3 +252,5 @@ Os campos "Uso de IA" do [`DIARIO.md`](DIARIO.md) detalham o uso em cada etapa.
 **Uma sugestão que rejeitei:** para impedir que um evento antigo, vindo do retry, sobrescrevesse um estado mais novo no cache, a IA sugeriu um script Lua, que o Redis executa de forma atômica. Rejeitei porque não quis outra linguagem num projeto todo em TypeScript. Também descartei o `WATCH` com transação, que exigiria um laço de novas tentativas e uma conexão por atualização. Fiquei com um sorted set, em que a pontuação é o `atualizadoEm` da corrida e só o mais recente é mantido (decisão 7 do [`DECISIONS.md`](DECISIONS.md)).
 
 **Uma correção que precisei fazer:** perto do fim, a IA indicou que a Parte 2 estava completa, com base no resumo do que tínhamos combinado. Relendo o enunciado, encontrei itens que faltavam (tamanho e atraso da fila, o caminho do `PrometheusRule` e a justificativa dos alertas) e os implementei.
+
+
