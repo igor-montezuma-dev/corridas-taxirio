@@ -69,7 +69,7 @@ export class CorridasRepository {
     const [rows] = await this.pool.execute<CorridaRow[]>(
       `SELECT ${COLUNAS} FROM corridas
       WHERE status = 'solicitada' OR motorista_id = ?
-      ORDER BY criado_em ASC
+      ORDER BY status = 'solicitada' DESC, criado_em DESC
       LIMIT 50`,
       [motoristaId],
     );
