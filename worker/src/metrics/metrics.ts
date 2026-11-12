@@ -15,6 +15,16 @@ export const processedEvents = new Counter({
   registers: [registry],
 });
 
+const TYPES = ['corrida.criada', 'corrida.status_alterado'] as const;
+const RESULTS = ['success', 'retry', 'dlq'] as const;
+
+for (const type of TYPES) {
+  for (const result of RESULTS) {
+    processedEvents.inc({ type, result }, 0);
+  }
+}
+processedEvents.inc({ type: 'unknown', result: 'invalid' }, 0);
+
 export const processingDuration = new Histogram({
   name: 'event_processing_duration_seconds',
   help: 'Tempo de processamento de um evento (histórico e cache)',
