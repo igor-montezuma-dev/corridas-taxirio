@@ -89,8 +89,11 @@ TOKEN_P1=$(docker run --rm -v "$PWD":/app -w /app node:24-alpine node scripts/ge
 Abra http://localhost:8080 e cole um dos tokens.
 
 1. Como `passageiro-1`, peça uma corrida. Em seguida, use "Reenviar o último pedido (mesma chave)": a resposta é `200` e nenhuma corrida nova é criada (idempotência).
-2. Em outra aba, como `motorista-1`, aceite, inicie e finalize. A aba do passageiro atualiza sozinha em até 3 s.
-3. Como `motorista-2`, tente aceitar a mesma corrida: a API responde `409`.
+2. Abra mais duas abas, uma como `motorista-1` e outra como `motorista-2`. As duas mostram a corrida como `Solicitada`, com o botão "Aceitar".
+3. Clique em "Aceitar" na aba do `motorista-1` e, logo em seguida (antes de 3 s), na do `motorista-2`: o segundo recebe `409`, porque a corrida já foi aceita. Depois do próximo polling, ela some da lista do `motorista-2`, que só vê corridas solicitadas e as próprias.
+4. Na aba do `motorista-1`, inicie e finalize. A aba do passageiro atualiza sozinha em até 3 s.
+
+O aceite concorrente também é coberto pela demonstração automática (`docker compose run --rm demo`).
 
 Detalhes da UI e das decisões dela em [`ui/README.md`](ui/README.md).
 
@@ -129,6 +132,8 @@ cd worker && npm ci && npm test && cd ..
 cd ui && npm ci && npm test && cd ..
 ```
 
+O `npm ci` reporta vulnerabilidades e pacotes descontinuados. Todos estão em ferramentas de desenvolvimento (Jest, Oxlint, Nest CLI), que não vão para as imagens: `npm audit --omit=dev` mostra 0 em produção (veja o [`LIMITES.md`](LIMITES.md)).
+
 ## Como validar a observabilidade
 
 ### Logs com correlation_id de ponta a ponta
@@ -151,7 +156,7 @@ O mesmo `correlation_id` aparece na linha da requisição na API e na linha do p
 ### Métricas
 
 ```bash
-curl -s http://localhost:3000/metrics | grep '^http_request'
+curl -s http://localhost:3000/metrics | grep '^http_requests_total'
 curl -s http://localhost:3001/metrics | grep -E '^events_processed_total|^event_queue_delay'
 ```
 
