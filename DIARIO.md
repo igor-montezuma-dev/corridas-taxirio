@@ -730,3 +730,19 @@ Registro do que fiz, o que quebrou e como investiguei. Escrito durante o process
 **Próximo passo**
 
 - DECISIONS (com a entrada obrigatória do RabbitMQ), LIMITES, k6 se der tempo, README, teste com clone limpo e vídeo.
+
+
+## Teste com clone limpo (12/11)
+
+**O que fiz:** clonei o repositório do GitHub numa pasta nova e segui o README do zero, como o avaliador faria: subir a stack, rodar a demo, gerar tokens, usar a UI, rodar os testes das três aplicações e validar logs, métricas e o alerta da DLQ.
+
+**Por quê:** os testes locais rodam num ambiente que já tem estado e passos que eu sei de cabeça. O README só prova que funciona se alguém conseguir reproduzir tudo sem contexto, só com Docker.
+
+**O que quebrou:**
+- O passo 3 da UI era impossível de seguir: quando um motorista aceita a corrida, ela some da lista do outro motorista, e a lista ficava vazia. Reescrevi o passo explicando o comportamento e indicando que a demo cobre o fluxo completo.
+- O 404 de rota inexistente aparecia na métrica como `route="{/*splat}"` e não como `nao_encontrada`. O Nest 12 com Express 5 responde o 404 por uma rota coringa interna, então o `req.route` existe e o fallback nunca era usado. A cardinalidade já estava protegida (é um valor fixo), mas o nome não batia com a documentação. Corrigi tratando a rota coringa como não encontrada.
+- O comando de métricas da API no README (`grep '^http_request'`) despejava todos os buckets do histograma. Troquei por `^http_requests_total`.
+
+**Uso de IA:** a IA me ajudou a interpretar as saídas do teste e a identificar a causa do `{/*splat}`. Apliquei e validei a correção no repositório principal, não no clone, para manter o clone como uma cópia intocada do que o avaliador vai baixar.
+
+**Próximo passo:** gravar o vídeo e enviar a entrega.
