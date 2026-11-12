@@ -55,4 +55,7 @@ Registro das decisões relevantes: contexto, alternativas consideradas, escolha 
 
 ## 8. Manteria o RabbitMQ num sistema do zero?
 
-_A preencher._
+**Contexto:** O sistema publica eventos de corrida que hoje têm um consumidor (o worker) e podem ganhar outros (notificações, faturamento, analytics), cada um interessado em parte dos eventos. As falhas no consumo podem ser passageiras ou permanentes. Não há requisito de reprocessar o histórico de eventos nem de ordem estrita: a ordem do cache é resolvida pelo `atualizadoEm` (decisão 7).
+**Alternativas:** Kafka (log persistente com replay e ordem por partição, mas mais peças para operar e sem retry nem DLQ prontos); BullMQ (o Redis já está no projeto, mas é uma fila de jobs para um consumidor por job, pensada para o ecossistema Node, e misturaria a mensageria com o cache); SQS com SNS (sem operação, mas preso a um provedor de nuvem e sem rodar localmente sem emulador).
+**Escolha:** Manteria o RabbitMQ. Ele entrega o que o sistema precisa com recursos do próprio broker: roteamento por tópico para vários consumidores, ack por mensagem, retry com TTL e DLQ, e métricas por fila para o Prometheus, para que rode em um container só.
+**Trade-off:** Não há replay: uma mensagem consumida sai da fila, e um consumidor novo não recebe os eventos antigos (o histórico no Mongo cobre a auditoria). Trocaria pelo Kafka se replay ou ordem por corrida virassem requisitos, ou se o volume de eventos passasse do que um cluster RabbitMQ atende bem.
