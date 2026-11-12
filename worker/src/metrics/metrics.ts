@@ -32,3 +32,11 @@ export const processingDuration = new Histogram({
   buckets: [0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1],
   registers: [registry],
 });
+
+export const queueDelay = new Histogram({
+  name: 'event_queue_delay_seconds',
+  help: 'Tempo entre a mudança da corrida na API e o início do processamento no worker',
+  labelNames: ['type'] as const,
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 5, 15, 60],
+  registers: [registry],
+});

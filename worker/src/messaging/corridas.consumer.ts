@@ -23,7 +23,7 @@ import {
 import { corridaEventSchema } from './corrida-event.schema';
 import { correlation } from '../common/correlation';
 import { randomUUID } from 'node:crypto';
-import { processedEvents, processingDuration } from '../metrics/metrics';
+import { processedEvents, processingDuration, queueDelay } from '../metrics/metrics';
 
 @Injectable()
 export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
@@ -98,24 +98,26 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
       ch.ack(msg);
       return;
     }
-    const evento = result.data;
+    const event = result.data;
+    const delayInSeconds = (Date.now() - new Date(event.corrida.atualizadoEm).getTime()) / 1000;
+    queueDelay.observe({type: event.tipo}, Math.max(delayInSeconds, 0))
     const endTimer = processingDuration.startTimer({
-      type: evento.tipo,
+      type: event.tipo,
     });
 
     try {
-      await this.processor.process(evento);
+      await this.processor.process(event);
     } catch (error) {
       endTimer();
       const tentativas =
         Number(msg.properties.headers?.['x-tentativas'] ?? 0) + 1;
       const destino = tentativas < MAX_TENTATIVAS ? FILA_RETRY : FILA_DLQ;
       processedEvents.inc({
-        type: evento.tipo,
+        type: event.tipo,
         result: destino === FILA_DLQ ? 'dlq' : 'retry',
       });
       this.logger.warn(
-        `Falha ao processar ${evento.eventId} (tentativa ${tentativas}); enviando para ${destino}: ${
+        `Falha ao processar ${event.eventId} (tentativa ${tentativas}); enviando para ${destino}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -125,7 +127,7 @@ export class CorridasConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     endTimer();
-    processedEvents.inc({ type: evento.tipo, result: 'success' });
+    processedEvents.inc({ type: event.tipo, result: 'success' });
     ch.ack(msg);
   }
 
